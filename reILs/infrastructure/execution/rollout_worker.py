@@ -137,7 +137,7 @@ class RolloutWorker:
             step_return = Batch(
                 obs=obs, act=act, next_obs=next_obs,
                 rew=rew, done=done, info=info,
-                eps_id=episodes, ep_len=ep_len, ep_rew=ep_rew,
+                ep_len=ep_len, ep_rew=ep_rew,
             )
             step_list.append(step_return)
             obs = next_obs

@@ -80,14 +80,14 @@ class AimLogger(Logger):
             aim_images.append(aim_image)
         self._aim_run.track(value=aim_images, name=name, step=step_, context=context)
 
-    def log_paths_as_videos(self, paths, step, max_videos_to_save=2, fps=10, video_title='video'):
+    def log_paths_as_videos(self, paths, step, fps=30, video_title='video'):
 
         # reshape the rollouts
         # videos = [np.transpose(p['image_obs'], [0, 1, 2, 3]) for p in paths]
-        videos = [p['image_obs'] for p in paths]
+        videos = [p['img_obs'] for p in paths]
 
         # max rollout length
-        max_videos_to_save = np.min([max_videos_to_save, len(videos)])
+        max_videos_to_save = len(videos)
         max_length = videos[0].shape[0]
         for i in range(max_videos_to_save):
             if videos[i].shape[0]>max_length:
@@ -101,8 +101,9 @@ class AimLogger(Logger):
 
         # log videos to local dir and aim logger
         videos = np.stack(videos[:max_videos_to_save], 0)
-        self._video_log_dir = osp.join(self._snapshot_dir, 'video')
-        mkdir_p(self._video_log_dir)
+        if self._video_log_dir is None:
+            self._video_log_dir = osp.join(self._snapshot_dir, 'video')
+            mkdir_p(self._video_log_dir)
         self.log_video(videos, video_title, step, fps=fps)
 
     def log_figure(self, figure, name, step, context=None, dpi=300):

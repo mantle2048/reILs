@@ -57,7 +57,7 @@ def dict_to_safe_json(d):
     return new_d
 
 
-def create_exp_name(exp_prefix, exp_id=0, seed=0):
+def create_exp_name(exp_prefix, seed=0, with_timestamp=True):
     """
     Create a semi-unique experiment name that has a timestamp
     :param exp_prefix:
@@ -65,14 +65,16 @@ def create_exp_name(exp_prefix, exp_id=0, seed=0):
     :return:
     """
     now = datetime.datetime.now(dateutil.tz.tzlocal())
-    timestamp = now.strftime('%Y-%m-%d_%H-%M-%S')
-    # return "%s_%s_seed-%d--%s" % (exp_prefix, timestamp, seed, str(exp_id))
-    return "%s_%s_%d--%s" % (timestamp, exp_prefix, seed, str(exp_id))
+    if with_timestamp:
+        timestamp = now.strftime('%Y-%m-%d_%H-%M-%S')
+        return "%s_%s_%d" % (timestamp, exp_prefix, seed)
+    else:
+        return "%s_%d" % (exp_prefix, seed)
+        # return "%s_%s_seed-%d--%s" % (exp_prefix, timestamp, seed, str(exp_id))
 
 
 def create_log_dir(
         exp_prefix,
-        exp_id=0,
         seed=0,
         base_log_dir=None,
         include_exp_prefix_sub_dir=True,

@@ -1,7 +1,7 @@
 # +
 import numpy as np
 import argparse
-from reILs.infrastructure.data import Batch, convert_batch_to_dict
+from reILs.infrastructure.datas import Batch, convert_batch_to_dict
 import pickle
 import torch
 
@@ -30,3 +30,7 @@ if __name__ == '__main__':
     from pprint import pprint as pp
     pp(batch)
     pp(convert_batch_to_dict(batch))
+
+b = Batch(info = [np.ones((64, 64, 3))])
+b = Batch.cat([b,b])
+b.shape

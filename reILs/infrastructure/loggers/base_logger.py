@@ -89,10 +89,15 @@ class Logger(object):
         self._snapshot_mode = 'all'
         self._snapshot_gap = 1
 
+        self._video_log_dir = None
+
         self._log_tabular_only = False
         self._header_printed = False
         self.table_printer = TerminalTablePrinter()
 
+    @property
+    def exp_dir(self):
+        return self._snapshot_dir
 
     def reset(self):
         self.__init__()

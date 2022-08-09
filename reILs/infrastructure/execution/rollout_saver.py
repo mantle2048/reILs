@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Union, Dict
 from collections import defaultdict
 
-from reILs.infrastructure.data import Batch, convert_batch_to_dict
+from reILs.infrastructure.datas import Batch, convert_batch_to_dict
 from reILs.infrastructure.utils import utils
 
 class RolloutSaver:

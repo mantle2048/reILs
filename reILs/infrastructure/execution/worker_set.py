@@ -16,6 +16,7 @@ class WorkerSet:
         policy_maker: Callable[["policy_name", "policy_config"], "policy"] = None,
         config: Dict = None,
         local_worker: bool = True,
+        local_mode: bool = False,
         _setup: bool = True,
     ):
         """Initializes a WorkerSet instance.
@@ -35,10 +36,10 @@ class WorkerSet:
         self._policy_maker = policy_maker
         self._config = config
         self._cls = RolloutWorker.as_remote().remote
+        self._remote_workers = []
 
         if _setup:
             # Create a number of @ray.remote workers.
-            self._remote_workers = []
             self.add_workers(num_workers)
 
         if num_workers == 0 or local_worker:

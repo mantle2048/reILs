@@ -11,8 +11,8 @@ from typing import List, Optional, Tuple, Union, Dict
 from collections import defaultdict
 
 from reILs.infrastructure.loggers import VideoRecorder
-from reILs.infrastructure.execution import RolloutSaver, local_sample, synchronous_parallel_sample
-from reILs.infrastructure.data import Batch
+from reILs.infrastructure.execution import RolloutSaver, synchronous_parallel_sample, WorkerSet 
+from reILs.infrastructure.datas import Batch
 
 "yanked and modified from https://github.com/ray-project/ray/blob/130b7eeaba/rllib/evaluate.py"
 
@@ -124,8 +124,8 @@ def run(args, parser):
 
 def evaluate(
     agent,
-    num_episodes: int,
-    num_steps: int=0,
+    num_episodes: int=None,
+    num_steps: int=None,
     saver: RolloutSaver=None,
     render: bool=False,
 ) -> List[Batch]:
@@ -137,9 +137,11 @@ def evaluate(
         f'Agent: {agent} must have workers to evaluate.'
 
     # no saver, just evaluate the agent performance.
-    if saver.is_invalid:
+    if saver.is_invalid and agent.workers.remote_workers():
         eval_batch_list = synchronous_parallel_sample(
-            worker_set=agent.workers,
+            remote_workers=agent.workers.remote_workers(),
+            max_steps=num_steps,
+            max_episodes=num_episodes,
             concat=False,
         )
         return eval_batch_list

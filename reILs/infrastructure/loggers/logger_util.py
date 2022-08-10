@@ -24,7 +24,7 @@ from .tensorboard_logger import TensorBoardLogger
 from .aim_logger import AimLogger
 from .base_logger import Logger
 from .tabulate import tabulate
-from reRLs import user_config as conf
+from reILs import user_config as conf
 
 
 def safe_json(data):
@@ -89,8 +89,7 @@ def create_log_dir(
     :param base_log_dir: The directory where all log should be saved.
     :return:
     """
-    exp_name = create_exp_name(exp_prefix, exp_id=exp_id,
-                               seed=seed)
+    exp_name = create_exp_name(exp_prefix, seed=seed)
     if base_log_dir is None:
         base_log_dir = conf.LOCAL_LOG_DIR
 

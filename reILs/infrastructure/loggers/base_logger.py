@@ -21,7 +21,7 @@ import torch
 import tempfile
 
 from .tabulate import tabulate
-from reRLs import user_config as conf
+from reILs import user_config as conf
 
 class TerminalTablePrinter(object):
     def __init__(self):

@@ -7,9 +7,9 @@ from enum import Enum
 from typing import Dict
 from moviepy import editor as mpy # this line for 'moviepy' correctly run
 from matplotlib import pyplot as plt
-from reRLs import user_config as conf
-from reRLs.infrastructure.loggers.base_logger import Logger, mkdir_p
-from reRLs.infrastructure.utils import utils
+from reILs import user_config as conf
+from reILs.infrastructure.loggers.base_logger import Logger, mkdir_p
+from reILs.infrastructure.utils import utils
 
 def safe_dict(dic):
     def default(o):

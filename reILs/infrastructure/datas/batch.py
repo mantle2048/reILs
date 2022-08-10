@@ -10,7 +10,6 @@ import torch
 
 IndexType = Union[slice, int, np.ndarray, List[int]]
 
-
 def _is_batch_set(obj: Any) -> bool:
     # Batch set is a list/tuple of dict/Batch objects,
     # or 1-D np.ndarray with object type,

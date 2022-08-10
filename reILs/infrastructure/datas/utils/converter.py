@@ -142,7 +142,6 @@ def from_hdf5(x: h5py.Group, device: Optional[str] = None) -> Hdf5ConvertibleVal
     """Restore object from HDF5 group."""
     if isinstance(x, h5py.Dataset):
         # handle datasets
-        import ipdb; ipdb.set_trace()
         if x.attrs["__data_type__"] == "ndarray":
             return np.array(x)
         elif x.attrs["__data_type__"] == "Tensor":

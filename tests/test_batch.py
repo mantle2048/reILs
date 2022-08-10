@@ -31,6 +31,6 @@ if __name__ == '__main__':
     pp(batch)
     pp(convert_batch_to_dict(batch))
 
-b = Batch(info = [np.ones((64, 64, 3))])
-b = Batch.cat([b,b])
-b.shape
+b = Batch(info = Batch(pp=np.ones(10)))
+b = Batch.stack([b,b])
+b

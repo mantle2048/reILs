@@ -1,15 +1,15 @@
 import numpy as np
+import reILs.algos as algos
+
 from scipy.signal import lfilter
 from typing import Dict,Union,List
 
-from .ppo_policy import PPOPolicy
-from reILs.envs.env_maker import make_env
-from reILs.algos.policy_maker import make_policy
-from reILs.infrastructure.datas import ReplayBuffer
+from reILs.envs import make_env
+from reILs.policies import make_policy
+from reILs.infrastructure.datas import ReplayBuffer, Batch
 from reILs.infrastructure.execution import WorkerSet
 from reILs.infrastructure.utils import utils
 from reILs.infrastructure.utils import pytorch_util as ptu
-
 
 class PPOAgent:
 
@@ -17,7 +17,7 @@ class PPOAgent:
 
         # init params
         self.config = config
-        self.workers = WokerSet(
+        self.workers = WorkerSet(
             num_workers = config['num_workers'],
             env_maker = make_env,
             policy_maker = make_policy,
@@ -25,25 +25,27 @@ class PPOAgent:
         )
         self.env = self.workers.local_worker().env
         self.policy = self.workers.local_worker().policy
-        self.replay_buffer = ReplayBuffer(config['itr_size'])
+        self.replay_buffer = ReplayBuffer(config['step_per_itr'])
 
-        self.gamma = config.setdefault('gamma', 0.99)
+        self.gamma = config.get('gamma')
         self.standardize_advantages = \
-                config.setdefault('standardize_advantages', True)
-        self.gae_lambda = config.setdefault('gae_lambda', 0.99)
-        self.target_kl = config.setdefault('target_kl', 0.2)
+                config.get('standardize_advantages')
+        self.gae_lambda = config.get('gae_lambda')
+        self.target_kl = config.get('target_kl')
+        self.recompute_adv = config.get('recompute_adv')
 
     def process_fn(self, batch_list: List[Batch]) -> Batch:
-        rew_list = [batch.rew for batch in batch_list]
+        rews_list = [batch.rew for batch in batch_list]
         full_batch = Batch.cat(batch_list)
         obss, acts = full_batch.obs, full_batch.act
         dones = full_batch.done
 
         # step 1: calculate q values of each (s_t, a_t) point, using rewards [r_1, ..., r_t, ..., r_T]
-        full_batch['q_value'] = self.calculate_q_values(rews_list)
+        q_value = self.calculate_q_values(rews_list)
+        full_batch['q_value'] = q_value
 
         # step 2: calculate advantages that correspond to each (s_t, a_t) point
-        full_batch['adv'] = self.estimate_advantages(obss, rews_list, q_values, dones)
+        full_batch['adv'] = self.estimate_advantages(obss, rews_list, q_value, dones)
 
         # step 3: obtain log prob that correspond to each (s_t, a_t) point
         full_batch['log_prob'] = self.get_log_prob(obss, acts)
@@ -61,9 +63,10 @@ class PPOAgent:
             # use all datapoints (s_t, a_t, q_t, adv_t) to update the PG actor/policy
             ## HINT: `train_log` should be returned by the actor update method
             train_log = self.policy.update(batch)
+            self.workers.sync_weights()
             train_logs.append(train_log)
 
-            if self.target_kl is not None and train_log['KL Divergence'] > 1.5 * self.target_kl:
+            if self.target_kl is not None and train_log['KL Divergence'] > self.target_kl:
                 break
 
         return train_logs

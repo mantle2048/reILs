@@ -1,5 +1,5 @@
 import os
-from reRLs.infrastructure.loggers.base_logger import Logger
+from reILs.infrastructure.loggers.base_logger import Logger
 from tensorboardX import SummaryWriter
 from moviepy import editor as mpy # this line for 'moviepy' correctly run
 import numpy as np

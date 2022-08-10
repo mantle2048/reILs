@@ -1,17 +1,15 @@
 import numpy as np
+import ray
 import warnings
-from .worker_set import WorkerSet
 from typing import Optional, Union, List, Dict
 from ray.actor import ActorHandle
-
 from reILs.infrastructure.datas import Batch
-from reILs.infrastructure.execution import WorkerSet, RolloutWorker
 
 def synchronous_parallel_sample(
     *,
     remote_workers: List[ActorHandle],
     max_steps: Optional[int] = None,
-    max_episodes: Optinal[int] = None,
+    max_episodes: Optional[int] = None,
     concat: bool = False
 ) -> List[Batch]:
     """
@@ -49,8 +47,9 @@ def synchronous_parallel_sample(
                 surplus_steps = max_steps - steps
                 if surplus_steps < len(batch):
                     batch = batch[:surplus_steps]
-                batch['eps_id'] = np.full((len(batch), episodes))
+                batch['eps_id'] = np.full(len(batch), episodes)
                 batch_list.append(batch)
+                episodes += 1
                 steps += len(batch)
                 if steps >= max_steps: break
 
@@ -63,7 +62,7 @@ def synchronous_parallel_sample(
                 [worker.sample.remote() for worker in remote_workers]
             )
             for batch in batches:
-                batch['eps_id'] = np.full((len(batch), episodes))
+                batch['eps_id'] = np.full(len(batch), episodes)
                 batch_list.append(batch)
                 episodes += 1
 

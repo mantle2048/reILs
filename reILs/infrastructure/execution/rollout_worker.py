@@ -3,32 +3,36 @@ import numpy as np
 import torch
 import os
 import warnings
-from typing import Optional, List, Dict, Union
+import ray
+from typing import Optional, List, Dict, Union, Callable
 from reILs.infrastructure.execution import RolloutSaver
+from reILs.infrastructure.datas import Batch
 
 def update_gloabl_seed(
-    seed: Optional[int] = None
+    seed: Optional[int] = None,
+    worker_id: int=0,
 ) -> None:
     """Seed global modules such as random, numpy, torch.
     This is useful for debugging and testing.
-    Args:
+    Argsw
         seed: An optional int seed. If None, will not do
             anything.
     """
     if seed is None:
         return
 
+    computed_seed: int = worker_id * 1000 + seed
     # Python random module.
-    random.seed(seed)
+    random.seed(computed_seed)
     # Numpy.
-    np.random.seed(seed)
+    np.random.seed(computed_seed)
     # Torch.
-    torch.manual_seed(seed)
+    torch.manual_seed(computed_seed)
 
 def update_env_seed(
     env,
-    seed: int,
-    worker_id: int,
+    seed: Optional[int] = None,
+    worker_id: int=0,
 ):
     """Set a deterministic random seed on environment.
     NOTE: this may not work with remote environments (issue #18154).
@@ -105,25 +109,19 @@ class RolloutWorker:
             config: Config to pass to worker (consists of env_config,
                 policy_config)
         """
-
         self.worker_id = worker_id
         self.config = config
-
-        self.env = env_maker(
-            env_name = config.get('env_name'),
-            env_config = config.get('env_config')
-        )
-
+        update_gloabl_seed(config.get('seed'), worker_id)
         self.policy = policy_maker(
             policy_name = config.get('policy_name'),
             policy_config = config.get('policy_config')
             )
-
+        self.env = env_maker(
+            env_name = config.get('env_name'),
+            env_config = config.get('env_config')
+        )
+        update_env_seed(self.env, config.get('seed'), worker_id)
         self.saver = RolloutSaver(save_info=True)
-        if self.worker_id > 0:
-            update_gloabl_seed(config.get('seed'))
-            update_env_seed(self.env, seed, worker_id)
-
 
     def sample(self) -> Batch:
         step_list = []
@@ -133,6 +131,7 @@ class RolloutWorker:
         while not done:
             act = policy.get_action(obs)
             next_obs, rew, done, info = env.step(act)
+
             ep_rew += rew
             step_return = Batch(
                 obs=obs, act=act, next_obs=next_obs,
@@ -143,14 +142,14 @@ class RolloutWorker:
             obs = next_obs
             ep_len += 1
 
-        batch = Batch.cat(step_list)
+        batch = Batch.stack(step_list)
         return batch
 
-    def set_weight(self, weight):
-        self.policy.set_weight(weight)
+    def set_weights(self, weights):
+        self.policy.set_weights(weights)
 
-    def get_weight(self):
-        return self.policy.get_weight()
+    def get_weights(self):
+        return self.policy.get_weights()
 
     def stop(self):
         """Releases all resources used by this RolloutWorker."""

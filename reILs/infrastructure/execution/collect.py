@@ -1,3 +1,4 @@
+import numpy as np
 from typing import List, Optional, Tuple, Union, Dict
 from reILs.infrastructure.datas import Batch
 from reILs.infrastructure.execution import synchronous_parallel_sample, WorkerSet 
@@ -20,7 +21,7 @@ def collect(
 ) -> List[Batch]:
 
     assert hasattr(agent, 'workers') \
-        and isinstance(agent.workers, Workerset), \
+        and isinstance(agent.workers, WorkerSet), \
         f'Agent: {agent} must have workers to collect.'
 
     train_batch_list = []
@@ -46,8 +47,9 @@ def collect(
             surplus_steps = num_steps - steps
             if surplus_steps < len(batch):
                 batch = batch[:surplus_steps]
-            episodes += 1
+            batch['eps_id'] = np.full(len(batch), episodes)
             steps += len(batch)
+            episodes += 1
             train_batch_list.append(batch)
 
     return train_batch_list

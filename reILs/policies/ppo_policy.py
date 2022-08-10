@@ -2,7 +2,7 @@ import torch
 import itertools
 import numpy as np
 
-from typing import Any, Dict, List, Optional,
+from typing import Any, Dict, List, Optional
 from torch import nn
 from torch.nn import functional as F
 from torch import optim
@@ -15,6 +15,7 @@ from reILs.infrastructure.utils import utils
 class PPOPolicy(nn.Module):
 
     def __init__(self, config: Dict):
+        super().__init__()
         # init params
         self.config = config
 
@@ -22,7 +23,7 @@ class PPOPolicy(nn.Module):
         self.act_dim = config['act_dim']
         self.layers = config['layers']
         self.discrete = config['discrete']
-        self.learning_rate = config['learning_rate']
+        self.lr = config['lr']
         self.entropy_coeff = config['entropy_coeff']
         self.grad_clip = config['grad_clip']
         self.epsilon = config['epsilon']
@@ -37,7 +38,7 @@ class PPOPolicy(nn.Module):
             self.logstd = None
             self.optimizer = optim.Adam(
                 params = self.logits_net.parameters(),
-                lr = self.learning_rate)
+                lr = self.lr)
         else:
             self.logits_net = None
             self.mean_net = ptu.build_mlp(input_size=self.obs_dim,
@@ -50,7 +51,7 @@ class PPOPolicy(nn.Module):
             self.logstd.to(ptu.device)
             self.optimizer = optim.Adam(
                 params = itertools.chain(self.mean_net.parameters(),[self.logstd]),
-                lr = self.learning_rate)
+                lr = self.lr)
 
         # init baseline
         self.baseline = ptu.build_mlp(
@@ -61,11 +62,10 @@ class PPOPolicy(nn.Module):
         self.baseline.to(ptu.device)
         self.baseline_optimizer = optim.Adam(
             self.baseline.parameters(),
-            self.learning_rate,
+            self.lr,
         )
 
         self.apply(ptu.init_weights)
-
         # do last policy layer scaling, this will make initial actions have (close to)
         # 0 mean and std, and will help boost performances,
         # see https://arxiv.org/abs/2006.05990, Fig.24 for details
@@ -87,8 +87,9 @@ class PPOPolicy(nn.Module):
 
         act = act_dist.sample()
 
-        if self.discrete and act.shape != ():
-            act = act.squeeze()
+        act = act.squeeze()
+        # if self.discrete and act.shape != ():
+        #     act = act.squeeze()
 
         return ptu.to_numpy(act)
 
@@ -97,14 +98,13 @@ class PPOPolicy(nn.Module):
         batch: Batch = None,
         **kwargs: Any
     )-> Dict[str, List[float]]:
-         '''
+        '''
             Update the policy using ppo-clip surrogate object
         '''
         obss = ptu.from_numpy(batch.obs)
         acts = ptu.from_numpy(batch.act)
         log_pi_old = ptu.from_numpy(batch.log_prob)
         advs = ptu.from_numpy(batch.adv)
-        q_values = ptu.from_numpy(batch.q_value)
 
         act_dist = self.forward(obss)
         log_pi = act_dist.log_prob(acts)
@@ -138,6 +138,7 @@ class PPOPolicy(nn.Module):
 
         ## standardize the q_values to have a mean of zero and a standard deviation of one
         ## HINT: there is a `standardize` function in `infrastructure.utils`
+        q_values = batch.q_value
         mean_q, std_q = np.mean(q_values), np.std(q_values)
         targets = utils.standardize(q_values, mean_q, std_q)
         targets = ptu.from_numpy(targets)
@@ -152,7 +153,7 @@ class PPOPolicy(nn.Module):
 
         ## compute the loss that should be optimized for training the baseline MLP (`self.baseline`)
         ## HINT: use `F.mse_loss`
-        baseline_loss = self.baseline_loss(baseline_preds, targets)
+        baseline_loss = F.mse_loss(baseline_preds, targets)
 
         # optimize `baseline_loss` using `self.baseline_optimizer`
         # HINT: remember to `zero_grad` first
@@ -190,10 +191,10 @@ class PPOPolicy(nn.Module):
 
         return act_dist
 
-    def set_weight(self, weights: Dict):
+    def set_weights(self, weights: Dict):
         self.load_state_dict(weights)
 
-    def get_weight(self) -> Dict:
+    def get_weights(self) -> Dict:
         return {k: v.cpu().detach() for k, v in self.state_dict().items()}
 
     def run_baseline_prediction(self, obs: np.ndarray):

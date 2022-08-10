@@ -1,4 +1,5 @@
-from reILs.envs.env_maker import make_env
+from typing import Dict 
+from reILs.envs import make_env
 from reILs.infrastructure.execution import WorkerSet
 
 class GAILAgent:

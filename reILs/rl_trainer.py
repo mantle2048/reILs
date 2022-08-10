@@ -2,14 +2,15 @@ import time
 import gym
 import torch
 import numpy as np
+import random
 
 from gym import wrappers
 from typing import Dict
 from pyvirtualdisplay import Display
 from reILs.infrastructure.loggers import setup_logger
 from reILs.infrastructure.utils import pytorch_util as ptu
-from reILs.evaluate import evaluate
-from reILs.collect import collect
+from reILs.infrastructure.execution.evaluate import evaluate
+from reILs.infrastructure.execution.collect import collect
 
 # how many rollouts to save as videos
 MAX_NVIDEO = 2
@@ -30,8 +31,11 @@ class RL_Trainer(object):
 
         # Set random seed
         seed = self.config.setdefault('seed', 0)
+        random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
+
+        # Init GPU
         ptu.init_gpu(
             use_gpu=not self.config['no_gpu'],
             gpu_id=self.config['which_gpu']
@@ -85,6 +89,7 @@ class RL_Trainer(object):
                 num_episodes=self.config.get('episode_per_itr', None),
                 num_steps=self.config.get('step_per_itr', None),
             )
+
             train_batch = self.agent.process_fn(train_batch_list)
             self.total_envsteps += len(train_batch)
 
@@ -100,10 +105,10 @@ class RL_Trainer(object):
             ## log/save
             if self.logtabular:
                 ## perform tabular and video
-                self.perform_logging(itr, paths, eval_policy, train_video_paths, train_logs)
+                self.perform_logging(itr, train_logs)
 
             if self.logparam:
-                self.logger.save_itr_params(itr, self.agent.policy.get_weight())
+                self.logger.save_itr_params(itr, self.agent.policy.get_weights())
         self.logger.close()
 
     ####################################

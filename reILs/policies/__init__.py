@@ -1,6 +1,6 @@
+from .ppo_policy import PPOPolicy
+from .gail_policy import GAILPolicy
 from typing import Dict
-from .gail import GAILPolicy
-from .ppo import PPOPolicy
 
 def make_policy(policy_name: str, policy_config: Dict):
     if policy_name == 'gail':

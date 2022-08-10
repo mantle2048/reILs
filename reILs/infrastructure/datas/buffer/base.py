@@ -228,7 +228,8 @@ class ReplayBuffer:
 
     def add(
         self,
-        step: Batch,
+        batch: Batch,
+        buffer_ids: Optional[Union[np.ndarray, List[int]]] = None
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Add a batch of data into replay buffer.
         :param Batch batch: the input data batch. Its keys must belong to the 7
@@ -240,23 +241,43 @@ class ReplayBuffer:
         episode_reward is 0.
         """
         # preprocess batch
-        new_step = Batch()
-        for key in set(self._reserved_keys).intersection(step.keys()):
-            new_step.__dict__[key] = step[key]
-        step = new_step
-        assert set(["obs", "act", "rew", "done"]).issubset(step.keys())
+        new_batch = Batch()
+        # for key in set(self._reserved_keys).intersection(batch.keys()):
+        for key in batch.keys():
+            new_batch.__dict__[key] = batch[key]
+        batch = new_batch
+        assert set(["obs", "act", "rew", "done"]).issubset(batch.keys())
+        stacked_batch = buffer_ids is not None
+        if stacked_batch:
+            assert len(batch) == 1
         if self._save_only_last_obs:
-            step.obs = step.obs[-1]
+            batch.obs = batch.obs[:, -1] if stacked_batch else batch.obs[-1]
         if not self._save_next_obs:
-            step.pop("next_obs", None)
+            batch.pop("next_obs", None)
         elif self._save_only_last_obs:
-            step.next_obs = step.next_obs[-1]
+            batch.next_obs = (
+                batch.next_obs[:, -1] if stacked_batch else batch.next_obs[-1]
+            )
         # get ptr
-        rew, done = step.rew, step.done
+        if stacked_batch:
+            rew, done = batch.rew[0], batch.done[0]
+        else:
+            rew, done = batch.rew, batch.done
         ptr, ep_rew, ep_len, ep_idx = list(
             map(lambda x: np.array([x]), self._add_index(rew, done))
         )
-        self._meta[ptr] = step
+        try:
+            self._meta[ptr] = batch
+        except ValueError:
+            stack = not stacked_batch
+            batch.rew = batch.rew.astype(float)
+            batch.done = batch.done.astype(bool)
+            if self._meta.is_empty():
+                self._meta = _create_value(  # type: ignore
+                    batch, self.maxsize, stack)
+            else:  # dynamic key pops up in batch
+                _alloc_by_keys_diff(self._meta, batch, self.maxsize, stack)
+            self._meta[ptr] = batch
         return ptr, ep_rew, ep_len, ep_idx
 
     def add_batch(
@@ -367,12 +388,9 @@ class ReplayBuffer:
             next_obs = self.get(indices, "next_obs", Batch())
         else:
             next_obs = self.get(self.next(indices), "obs", Batch())
-        return Batch(
-            obs=obs,
-            act=self.act[indices],
-            rew=self.rew[indices],
-            done=self.done[indices],
-            next_obs=next_obs,
-            info=self.get(indices, "info", Batch()),
-            policy=self.get(indices, "policy", Batch()),
-        )
+
+        batch = Batch(obs=obs, next_obs=next_obs)
+        for key in self._meta.keys():
+            if key not in ('obs', 'next_obs'):
+                batch.update({key:self.get(indices, key, Batch())})
+        return batch

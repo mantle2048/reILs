@@ -1,3 +1,5 @@
+import ray
+
 from typing import Optional, List, Dict, Union, Callable
 from reILs.infrastructure.execution import RolloutWorker
 from ray.actor import ActorHandle
@@ -56,7 +58,10 @@ class WorkerSet:
             ) 
 
         if not ray.is_initialized():
-            ray.init(ignore_reinit_error=True)
+            ray.init(
+                ignore_reinit_error=True,
+                local_mode=local_mode,
+            )
 
     def local_worker(self) -> RolloutWorker:
         """Returns the local rollout worker."""
@@ -72,7 +77,7 @@ class WorkerSet:
         # Only sync if we have remote workers or `from_worker` is provided.
         weights = None
         if self.remote_workers() is not None:
-            weights = (self.local_worker()).get_weights()
+            weights = self.local_worker().get_weights()
             # Put weights only once into object store and use same object
             # ref to synch to all workers.
             weights_ref = ray.put(weights)
@@ -124,15 +129,10 @@ class WorkerSet:
         policy_maker: Callable[["policy_name", "policy_config"], "policy"] = None,
         config: Dict = None,
     ):
-        worker_id: int = 0,
-        env_maker: Callable[["env_name", "env_config"], "env"],
-        policy_maker: Callable[["policy_name", "policy_config"], "policy"],
-        config: Dict,
-
         worker = cls(
-            worker_id,
-            env_maker,
-            policy_maker,
-            config
+            worker_id=worker_id,
+            env_maker=env_maker,
+            policy_maker=policy_maker,
+            config=config
         )
         return worker

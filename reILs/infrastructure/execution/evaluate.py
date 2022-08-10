@@ -133,7 +133,7 @@ def evaluate(
         saver = RolloutSaver()
 
     assert hasattr(agent, 'workers') \
-        and isinstance(agent.workers, Workerset), \
+        and isinstance(agent.workers, WorkerSet), \
         f'Agent: {agent} must have workers to evaluate.'
 
     # no saver, just evaluate the agent performance.
@@ -158,7 +158,7 @@ def evaluate(
         done, ep_rew, ep_len, step_list = False, 0.0, 0, []
         obs = env.reset()
         if render:
-            img_obs = [env.render(mode='rgb_array'))]
+            img_obs = [env.render(mode='rgb_array')]
         while not done and keep_going(steps, num_steps, episodes, num_episodes):
             act = policy.get_action(obs)
             next_obs, rew, done, info = env.step(act)
@@ -169,7 +169,7 @@ def evaluate(
                 eps_id=episodes, ep_len=ep_len, ep_rew=ep_rew,
             )
             if render:
-                img_obs = [env.render(mode='rgb_array'))]
+                img_obs = [env.render(mode='rgb_array')]
             step_list.append(step_return)
             obs = next_obs
             steps += 1
@@ -177,7 +177,7 @@ def evaluate(
         if done:
             episodes += 1
 
-        batch = Batch.cat(step_list)
+        batch = Batch.stack(step_list)
         saver.store(batch)
         eval_batch_list.append(batch)
 

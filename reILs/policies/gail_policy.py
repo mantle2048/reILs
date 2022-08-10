@@ -1,7 +1,9 @@
-from typing import Dict
+from typing import Dict, Any, List
 from reILs.infrastructure.utils import pytorch_util as ptu
+# from reILs.algos.ppo import PPOPolicy
+from reILs.infrastructure.datas import Batch
 
-class GAILPolicy(PPOPolicy):
+class GAILPolicy():
 
     def __init__(self, config: Dict):
         super().__init__(config)
@@ -12,9 +14,9 @@ class GAILPolicy(PPOPolicy):
                 layers=self.layers
             )
         self.disc_net.apply(ptu.init_weights)
-        self.disc_optimizer = optim.Adam()
+        self.disc_optimizer = optim.Adam(
             self.disc_net.parameters(),
-            self.learning_rate,
+            self.lr,
         )
         self.disc_update_num = config.get('disc_update_num', 1)
 
@@ -23,3 +25,4 @@ class GAILPolicy(PPOPolicy):
         batch: Batch = None,
         **kwargs: Any
     )-> Dict[str, List[float]]:
+        pass

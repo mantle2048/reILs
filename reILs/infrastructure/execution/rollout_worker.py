@@ -7,6 +7,7 @@ import ray
 from typing import Optional, List, Dict, Union, Callable
 from reILs.infrastructure.execution import RolloutSaver
 from reILs.infrastructure.datas import Batch
+from reILs.infrastructure.utils.gym_util import get_max_episode_steps
 
 def update_gloabl_seed(
     seed: Optional[int] = None,
@@ -120,28 +121,33 @@ class RolloutWorker:
             env_name = config.get('env_name'),
             env_config = config.get('env_config')
         )
+        self.max_step = get_max_episode_steps(self.env)
+        self.max_act = self.env.action_space.high[0]
         update_env_seed(self.env, config.get('seed'), worker_id)
         self.saver = RolloutSaver(save_info=True)
 
     def sample(self) -> Batch:
         step_list = []
         env, policy = self.env, self.policy
-        done, ep_rew, ep_len, step_list = False, 0.0, 0, []
+        ep_rew, ep_len, step_list = 0.0, 0, []
+        done, terminal = False, False
         obs = env.reset()
         while not done:
             act = policy.get_action(obs)
-            next_obs, rew, done, info = env.step(act)
-
+            clipped_act = np.clip(act, -self.max_act, self.max_act)
+            next_obs, rew, done, info = env.step(clipped_act)
             ep_rew += rew
+            ep_len += 1
+            if done and ep_len != self.max_step:
+                terminal = True
             step_return = Batch(
                 obs=obs, act=act, next_obs=next_obs,
                 rew=rew, done=done, info=info,
                 ep_len=ep_len, ep_rew=ep_rew,
+                terminal=terminal
             )
             step_list.append(step_return)
             obs = next_obs
-            ep_len += 1
-
         batch = Batch.stack(step_list)
         return batch
 

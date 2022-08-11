@@ -2,14 +2,17 @@ import numpy as np
 import reILs.algos as algos
 
 from scipy.signal import lfilter
-from typing import Dict,Union,List
+from typing import Dict,Union,List,Tuple
 
+from numba import njit
 from reILs.envs import make_env
 from reILs.policies import make_policy
 from reILs.infrastructure.datas import ReplayBuffer, Batch
 from reILs.infrastructure.execution import WorkerSet
 from reILs.infrastructure.utils import utils
 from reILs.infrastructure.utils import pytorch_util as ptu
+from reILs.infrastructure.utils.statistics import RunningMeanStd
+
 
 class PPOAgent:
 
@@ -33,23 +36,32 @@ class PPOAgent:
         self.gae_lambda = config.get('gae_lambda')
         self.target_kl = config.get('target_kl')
         self.recompute_adv = config.get('recompute_adv')
+        self.rew_norm = config.setdefault('rew_norm', False)
+        self.adv_norm = config.setdefault('adv_norm', False)
+        self.ret_rms = RunningMeanStd()
+        self._eps = 1e-8
 
     def process_fn(self, batch_list: List[Batch]) -> Batch:
-        rews_list = [batch.rew for batch in batch_list]
-        full_batch = Batch.cat(batch_list)
-        obss, acts = full_batch.obs, full_batch.act
-        dones = full_batch.done
+        batch = Batch.cat(batch_list)
+        batch = self.get_log_prob(batch)
+        batch = self.get_returns_and_advs(batch)
+        return batch
 
-        # step 1: calculate q values of each (s_t, a_t) point, using rewards [r_1, ..., r_t, ..., r_T]
-        q_value = self.calculate_q_values(rews_list)
-        full_batch['q_value'] = q_value
+    def get_returns_and_advs(self, batch: Batch) -> Batch:
+        obss, next_obss, rews = batch.obs, batch.next_obs, batch.rew
+        dones, terminals = batch.done.copy(), batch.terminal.copy()
+        returns, advs = self.estimate_returns_and_advantages(
+            obss, next_obss,
+            rews, dones, terminals
+        )
+        batch['returns'] = returns
+        batch['adv'] = advs
+        return batch
 
-        # step 2: calculate advantages that correspond to each (s_t, a_t) point
-        full_batch['adv'] = self.estimate_advantages(obss, rews_list, q_value, dones)
-
-        # step 3: obtain log prob that correspond to each (s_t, a_t) point
-        full_batch['log_prob'] = self.get_log_prob(obss, acts)
-        return full_batch
+    def get_log_prob(self, batch: Batch):
+        log_probs =  self.policy._get_log_prob(batch.obs, batch.act)
+        batch['log_prob'] = log_probs
+        return batch
 
     def train(self, batch_size: int, repeat: int) -> Dict:
 
@@ -58,18 +70,54 @@ class PPOAgent:
             and the calculated qvals/advantages that come from the seen rewards.
         """
         train_logs = []
-        for _ in range(repeat):
-            batch = self.sample(batch_size)
-            # use all datapoints (s_t, a_t, q_t, adv_t) to update the PG actor/policy
-            ## HINT: `train_log` should be returned by the actor update method
-            train_log = self.policy.update(batch)
-            self.workers.sync_weights()
-            train_logs.append(train_log)
-
+        for step in range(repeat):
+            batch = self.sample(0)
+            if self.recompute_adv and step > 0:
+                batch = self.get_returns_and_advs(batch)
+            for minibatch in batch.split(batch_size, merge_last=True):
+                if self.adv_norm:
+                    mean, std = minibatch.adv.mean(), minibatch.adv.std()
+                    minibatch.adv = (minibatch.adv - mean) / std  # per-batch norm
+                train_log = self.policy.update(minibatch)
+                train_logs.append(train_log)
             if self.target_kl is not None and train_log['KL Divergence'] > self.target_kl:
                 break
 
+        self.workers.sync_weights()
+
+
         return train_logs
+
+    def estimate_returns_and_advantages(
+        self,
+        obss: np.ndarray,
+        next_obss: np.ndarray,
+        rews: np.ndarray,
+        dones: np.ndarray,
+        terminals: np.ndarray
+    )-> Tuple[np.ndarray, np.ndarray]:
+        obss_v = self.policy.run_baseline_prediction(obss)
+        next_obss_v = self.policy.run_baseline_prediction(next_obss)
+        if self.rew_norm:
+            obss_v =  obss_v * np.sqrt(self.ret_rms.var + self._eps)
+            next_obss_v = next_obss_v * np.sqrt(self.ret_rms.var + self._eps)
+        # Value mask
+        next_obss_v[terminals] = 0.0
+        # truncted episode
+        dones[-1] = True
+        advs = _gae_return(
+            obss_v, next_obss_v,
+            rews, dones,
+            self.gamma, self.gae_lambda
+        )
+        unnormalized_returns = advs + obss_v # λ return
+        if self.rew_norm:
+            returns = unnormalized_returns / np.sqrt(self.ret_rms.var + self._eps)
+            self.ret_rms.update(unnormalized_returns)
+        else:
+            returns = unnormalized_returns
+        return returns, advs
+
 
     def sample(self, batch_size: int) -> Batch:
         return self.replay_buffer.sample(batch_size)
@@ -80,80 +128,21 @@ class PPOAgent:
     def resume(self):
         pass
 
-    def calculate_q_values(self, rews_list: List[np.ndarray]):
 
-        """
-            Monte Carlo estimation of the Q function.
-        """
-        # For each point (s_t, a_t), associate its value as being the discounted sum of rewards over the full trajectory
-        # In other words: value of (s_t, a_t) = sum_{t'=t}^T gamma^(t'-t) * r_{t'}
-        q_values = np.concatenate([self._discounted_cumsum(self.gamma, rews) for rews in rews_list])
-
-        return q_values
-
-    def estimate_advantages(self, obss, rews_list, q_values, dones):
-        """
-            Computes advantages by (possibly) subtracting a baseline from the estimated Q values
-        """
-        # Estimate the advantage when use_baseline is True,
-        # by querying the neural network that you're using to learn the baseline
-        baselines_standardized = self.policy.run_baseline_prediction(obss)
-        ## ensure that the baseline and q_values have the same dimensionality
-        ## to prevent silent broadcasting errors
-        assert baselines_standardized.ndim == q_values.ndim
-        ## baseline was trained with standardized q_values, so ensure that the predictions
-        ## have the same mean and standard deviation as the current batch of q_values
-        baselines =  \
-                utils.de_standardize(baselines_standardized, np.mean(q_values), np.std(q_values))
-
-        if self.gae_lambda is not None:
-            ### append a dummy T+1 value for simpler recursive calculation
-            baselines = np.append(baselines, [0])
-
-            ### combine rews_list into a single array
-            rews = np.concatenate(rews_list)
-
-            ### create empty numpy array to populate with GAE advantage
-            ### estimates, with dummy T+1 value for simpler recursive calculation
-            advs = np.zeros_like(baselines)
-
-            deltas = rews + self.gamma * baselines[1:] * (1 - dones) - baselines[:-1]
-
-            for i in reversed(range(obss.shape[0])):
-                advs[i] = self.gamma * self.gae_lambda * advs[i+1] * (1 - dones[i]) + deltas[i]
-
-            ### remove dummy advantage
-            advs = advs[:-1]
-
-        else:
-            ### compute advantage estimates using q_values and baselines
-            advs = q_values - baselines
-
-        # Normalize the resulting advantages
-        ## standardize the advantages to have a mean of zero
-        ## and a standard deviation of one
-        ## HINT: there is a `standardize` function in `infrastructure.utils`
-        advs = utils.standardize(advs, np.mean(advs), np.std(advs))
-
-        return advs
-
-    def get_log_prob(self, obss: np.ndarray, acts: np.ndarray):
-        return self.policy._get_log_prob(obss, acts)
-
-    def _discounted_return(self, discount, rewards: List) -> np.ndarray:
-        """
-            Helper function
-            Input: list of rewards {r_0, r_1, ..., r_t', ... r_T} from a single rollout of length T
-            Output: list where each index t contains sum_{t'=0}^T gamma^t' r_{t'}
-        """
-        discounted_returns = np.ones_like(rewards) * self._discounted_cumsum(discount, rewards)[0]
-        return discounted_returns
-
-    def _discounted_cumsum(self, discount, rewards: List) -> np.ndarray:
-        """
-            Helper function which
-            -takes a list of rewards {r_0, r_1, ..., r_t', ... r_T},
-            -and returns a list where the entry in each index t' is sum_{t'=t}^T gamma^(t'-t) * r_{t'}
-        """
-        discounted_cursums = lfilter([1], [1, -discount], rewards[::-1], axis=0)[::-1]
-        return discounted_cursums
+@njit
+def _gae_return(
+    v_s: np.ndarray,
+    v_s_: np.ndarray,
+    rew: np.ndarray,
+    end_flag: np.ndarray,
+    gamma: float,
+    gae_lambda: float,
+) -> np.ndarray:
+    returns = np.zeros(rew.shape)
+    delta = rew + v_s_ * gamma - v_s
+    discount = (1.0 - end_flag) * (gamma * gae_lambda)
+    gae = 0.0
+    for i in range(len(rew) - 1, -1, -1):
+        gae = delta[i] + discount[i] * gae
+        returns[i] = gae
+    return returns

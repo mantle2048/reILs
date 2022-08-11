@@ -7,6 +7,7 @@ import random
 from gym import wrappers
 from typing import Dict
 from pyvirtualdisplay import Display
+from reILs.envs import make_env
 from reILs.infrastructure.loggers import setup_logger
 from reILs.infrastructure.utils import pytorch_util as ptu
 from reILs.infrastructure.execution.evaluate import evaluate
@@ -46,7 +47,7 @@ class RL_Trainer(object):
         #############
 
         # Make the gym environment
-        dummy_env = gym.make(self.config['env_name'])
+        dummy_env = make_env(self.config['env_name'], self.config['env_config'])
 
         # Is this env continuous, or self.discrete?
         discrete = isinstance(dummy_env.action_space, gym.spaces.Discrete or gym.spaces.MultiDiscrete)
@@ -59,6 +60,9 @@ class RL_Trainer(object):
         act_dim = dummy_env.action_space.n if discrete else dummy_env.action_space.shape[0]
         self.config['policy_config']['obs_dim'] = obs_dim
         self.config['policy_config']['act_dim'] = act_dim
+        print("Env: ", dummy_env)
+        print("Observation Dim: ", obs_dim)
+        print("Action Dim: ", act_dim)
         dummy_env.close()
         del dummy_env
 
@@ -91,7 +95,7 @@ class RL_Trainer(object):
             )
 
             train_batch = self.agent.process_fn(train_batch_list)
-            self.total_envsteps += len(train_batch)
+            self.total_envsteps += len(train_batch.rew)
 
             ## add collected data to replay buffer
             self.agent.add_to_replay_buffer(train_batch)

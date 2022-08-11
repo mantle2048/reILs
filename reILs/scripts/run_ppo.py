@@ -22,15 +22,17 @@ def get_parser():
     parser.add_argument('--num-workers', type=int, default=10)
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--entropy-coeff', type=float, default=0.)
-    parser.add_argument('--grad_clip', type=float, default=None)
+    parser.add_argument('--grad-clip', type=float, default=None)
     parser.add_argument('--gae-lambda', type=float, default=None)
     parser.add_argument('--dont-standardize-advantages', '-dsa', action='store_true')
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--lr-decay', action='store_true')
     parser.add_argument('--layers', '-l', nargs='+', type=int, default=[64,64])
     parser.add_argument('--epsilon', type=float, default=0.2)
-    parser.add_argument('--target_kl', type=float, default=0.025)
+    parser.add_argument('--target_kl', type=float, default=None)
     parser.add_argument("--recompute-adv", action='store_true')
+    parser.add_argument("--rew-norm", action='store_true')
+    parser.add_argument("--adv-norm", action='store_true')
     return parser
 
 def get_config(args: argparse.Namespace) -> Dict:
@@ -60,6 +62,7 @@ def get_config(args: argparse.Namespace) -> Dict:
     # env args
     env_config = {
         'env_name': args.env_name,
+        'obs_norm': args.obs_norm,
         'seed': args.seed,
     }
 

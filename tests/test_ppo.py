@@ -14,9 +14,9 @@ if __name__ == '__main__':
     parser = get_parser()
     args = parser.parse_args([
         '--env-name',
-        'HalfCheetah-v3',
+        'Ant-v3',
         '--seed',
-        '0',
+        '1',
         '--n-itr',
         '501',
         '--num-workers',
@@ -26,13 +26,18 @@ if __name__ == '__main__':
         '--repeat-per-itr',
         '10',
         '--batch-size',
-        '128',
+        '100',
         '--tabular-log-freq',
         '5',
         '--gae-lambda',
         '0.95',
         '--lr',
         '3e-4',
+        '--obs-norm',
+        '--rew-norm',
+        '--recompute-adv'
+        # '--adv-norm',
+
     ])
 
     # convert to dictionary

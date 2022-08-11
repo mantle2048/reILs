@@ -7,49 +7,6 @@ from reILs.infrastructure.datas import Batch
 from reILs.infrastructure.datas.batch import _alloc_by_keys_diff, _create_value
 from reILs.infrastructure.datas.utils.converter import from_hdf5, to_hdf5
 
-# class ReplayBuffer:
-#     def __init__(
-#         self,
-#         size: int,
-#     ) -> None:
-# 
-#         self.maxsize = int(size)
-#         self._meta: Batch = Batch()
-#         self._ep_rew: Union[float, np.ndarray]
-#         self.reset()
-# 
-#     def __len__(self) -> int:
-#         """Return len(self)."""
-#         return self._size
-# 
-#     def __repr__(self) -> str:
-#         """Return str(self)."""
-#         return self.__class__.__name__ + self._meta.__repr__()[5:]
-# 
-#     def reset(self) -> None:
-#         """Clear all the data in replay buffer and episode statistics."""
-#         self.last_index = np.array([0])
-#         self._index = self._size = 0
-# 
-#     @classmethod
-#     def from_data(cls, **data_dict) -> "ReplayBuffer":
-#         keys = tuple(data_dict.keys())
-#         size = len(data_dict[keys[0]])
-#         assert all(len(data_dict[key]) == size for key in keys), \
-#             "Lengths of all data_dict values need to be equal."
-#         buf = cls(size)
-#         if size == 0:
-#             return buf
-#         batch = Batch(**data_dict)
-#         buf.set_batch(batch)
-#         buf._size = size
-#         return buf
-# 
-#     def set_batch(self, batch: Batch) -> None:
-#         """Manually choose the batch you want the ReplayBuffer to manage."""
-#         assert len(batch) == self.maxsize "Input batch doesn't meet ReplayBuffer's data form requirement."
-#         self._meta = batch
-
 class ReplayBuffer:
     """:class:`~reILs.data.ReplayBuffer` stores data generated from interaction \
     between the policy and environment.

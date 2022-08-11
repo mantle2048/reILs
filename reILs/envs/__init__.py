@@ -18,8 +18,8 @@ def make_env(env_name: str, env_config: Dict):
         env.action_space.seed(seed)
     else:
         env = gym.make(env_name)
-        env = NormalizeObservation(env)
         env.seed(seed)
         env.action_space.seed(seed)
-    # raise ValueError("Not supported env type, avaiable env_type = [dm_control]")
+    if env_config.get('obs_norm'):
+        env = NormalizeObservation(env)
     return env

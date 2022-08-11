@@ -136,14 +136,7 @@ class PPOPolicy(nn.Module):
             nn.utils.clip_grad_norm_(self.parameters(), self.grad_clip)
         self.optimizer.step()
 
-        ## standardize the q_values to have a mean of zero and a standard deviation of one
-        ## HINT: there is a `standardize` function in `infrastructure.utils`
-        q_values = batch.q_value
-        mean_q, std_q = np.mean(q_values), np.std(q_values)
-        targets = utils.standardize(q_values, mean_q, std_q)
-        targets = ptu.from_numpy(targets)
-
-        ## use the `forward` method of `self.baseline` to get baseline predictions
+        targets = ptu.from_numpy(batch.returns)
         baseline_preds = self.baseline(obss).flatten()
 
         ## avoid any subtle broadcasting bugs that can arise when dealing with arrays of shape

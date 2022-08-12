@@ -1,4 +1,3 @@
-TODO: sync sample with every worker sample step
-TODO: Save obs norm wrapper params in Agent save fn
 TODO: convert n_itr to env_steps
 TODO: test rollout saver
+TODO: see why ppo dist entropy is negative

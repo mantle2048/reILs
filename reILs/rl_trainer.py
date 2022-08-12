@@ -42,6 +42,10 @@ class RL_Trainer(object):
             gpu_id=self.config['which_gpu']
         )
 
+        ###############
+        ## LR Shceduler
+        ##############
+
         #############
         ## ENV
         #############
@@ -113,6 +117,10 @@ class RL_Trainer(object):
 
             if self.logparam:
                 self.logger.save_itr_params(itr, self.agent.policy.get_weights())
+                self.logger.save_extra_data(
+                    self.agent.get_statistics(),
+                    file_name='statistics.pkl'
+                ) 
         self.logger.close()
 
     ####################################

@@ -14,7 +14,7 @@ if __name__ == '__main__':
     parser = get_parser()
     args = parser.parse_args([
         '--env-name',
-        'Ant-v3',
+        'HalfCheetah-v3',
         '--seed',
         '3',
         '--n-itr',
@@ -27,14 +27,15 @@ if __name__ == '__main__':
         '10',
         '--batch-size',
         '100',
+        '--lr-decay',
         '--tabular-log-freq',
         '5',
         '--gae-lambda',
         '0.95',
         '--lr',
-        '3e-4',
+        '1e-3',
         '--obs-norm',
-        '--rew-norm',
+        '--ret-norm',
         '--recompute-adv'
         # '--adv-norm',
 

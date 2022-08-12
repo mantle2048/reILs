@@ -1,6 +1,9 @@
 import gym
-from gym.wrappers import NormalizeObservation
 import dmc2gym as dmc
+
+from gym.wrappers import NormalizeObservation
+from gym.wrappers import ClipAction
+from gym.spaces import Box
 from typing import Dict
 
 def make_env(env_name: str, env_config: Dict):
@@ -20,6 +23,9 @@ def make_env(env_name: str, env_config: Dict):
         env = gym.make(env_name)
         env.seed(seed)
         env.action_space.seed(seed)
+
+    if isinstance(env.action_space, Box):
+        env = ClipAction(env)
     if env_config.get('obs_norm'):
         env = NormalizeObservation(env)
     return env

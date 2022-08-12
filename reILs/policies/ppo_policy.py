@@ -64,15 +64,11 @@ class PPOPolicy(nn.Module):
             self.baseline.parameters(),
             self.lr,
         )
-
         self.apply(ptu.init_weights)
         # do last policy layer scaling, this will make initial actions have (close to)
         # 0 mean and std, and will help boost performances,
         # see https://arxiv.org/abs/2006.05990, Fig.24 for details
         ptu.scale_last_layer(self.logits_net if self.logits_net else self.mean_net)
-
-    def save(self, filepath=None):
-        torch.save(self.state_dict(), filepath)
 
     def get_action(self, obs: np.ndarray) -> np.ndarray:
         '''
@@ -184,12 +180,6 @@ class PPOPolicy(nn.Module):
 
         return act_dist
 
-    def set_weights(self, weights: Dict):
-        self.load_state_dict(weights)
-
-    def get_weights(self) -> Dict:
-        return {k: v.cpu().detach() for k, v in self.state_dict().items()}
-
     def run_baseline_prediction(self, obs: np.ndarray):
         """
             Helper function that converts `obs` to a tensor,
@@ -201,6 +191,15 @@ class PPOPolicy(nn.Module):
         obs = ptu.from_numpy(obs)
         predictions = self.baseline(obs)
         return ptu.to_numpy(predictions)[:, 0]
+
+    def save(self, filepath=None):
+        torch.save(self.state_dict(), filepath)
+
+    def set_weights(self, weights: Dict):
+        self.load_state_dict(weights)
+
+    def get_weights(self) -> Dict:
+        return {k: v.cpu().detach() for k, v in self.state_dict().items()}
 
     def _get_log_prob(self, obss, acts):
         obss = ptu.from_numpy(obss)

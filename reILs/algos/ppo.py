@@ -2,6 +2,7 @@ import numpy as np
 import reILs.algos as algos
 
 from scipy.signal import lfilter
+from torch.optim.lr_scheduler import LambdaLR, ExponentialLR
 from typing import Dict,Union,List,Tuple
 
 from numba import njit
@@ -34,12 +35,19 @@ class PPOAgent:
         self.standardize_advantages = \
                 config.get('standardize_advantages')
         self.gae_lambda = config.get('gae_lambda')
-        self.target_kl = config.get('target_kl')
         self.recompute_adv = config.get('recompute_adv')
-        self.rew_norm = config.setdefault('rew_norm', False)
+        self.ret_norm = config.setdefault('ret_norm', False)
         self.adv_norm = config.setdefault('adv_norm', False)
         self.ret_rms = RunningMeanStd()
         self._eps = 1e-8
+
+        if self.config.get("lr_decay"):
+            # self.lr_scheduler = LambdaLR(
+            # self.policy.optimizer, lr_lambda=lambda itr: 1 - itr / self.config.get('n_itr'))
+            self.lr_scheduler = ExponentialLR(self.policy.optimizer, gamma=0.999)
+        else:
+            self.lr_scheduler = None
+
 
     def process_fn(self, batch_list: List[Batch]) -> Batch:
         batch = Batch.cat(batch_list)
@@ -80,9 +88,9 @@ class PPOAgent:
                     minibatch.adv = (minibatch.adv - mean) / std  # per-batch norm
                 train_log = self.policy.update(minibatch)
                 train_logs.append(train_log)
-            if self.target_kl is not None and train_log['KL Divergence'] > self.target_kl:
-                break
-
+        if self.lr_scheduler:
+            self.lr_scheduler.step()
+            train_logs[-1]['Learning Rate'] = self.lr_scheduler.get_lr()[0]
         self.workers.sync_weights()
 
 
@@ -98,7 +106,7 @@ class PPOAgent:
     )-> Tuple[np.ndarray, np.ndarray]:
         obss_v = self.policy.run_baseline_prediction(obss)
         next_obss_v = self.policy.run_baseline_prediction(next_obss)
-        if self.rew_norm:
+        if self.ret_norm:
             obss_v =  obss_v * np.sqrt(self.ret_rms.var + self._eps)
             next_obss_v = next_obss_v * np.sqrt(self.ret_rms.var + self._eps)
         # Value mask
@@ -111,19 +119,25 @@ class PPOAgent:
             self.gamma, self.gae_lambda
         )
         unnormalized_returns = advs + obss_v # λ return
-        if self.rew_norm:
+        if self.ret_norm:
             returns = unnormalized_returns / np.sqrt(self.ret_rms.var + self._eps)
             self.ret_rms.update(unnormalized_returns)
         else:
             returns = unnormalized_returns
         return returns, advs
 
-
     def sample(self, batch_size: int) -> Batch:
         return self.replay_buffer.sample(batch_size)
 
     def add_to_replay_buffer(self, batch: Batch):
         self.replay_buffer.add_batch(batch)
+
+    def get_statistics(self):
+        statistics = {}
+        if self.config.get('obs_norm'):
+            statistics['obs_mean'] = self.env.obs_rms.mean
+            statistics['obs_var'] = self.env.obs_rms.var
+        return statistics
 
     def resume(self):
         pass

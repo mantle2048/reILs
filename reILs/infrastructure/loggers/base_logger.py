@@ -205,7 +205,7 @@ class Logger(object):
         """
 
         # Nothing to save
-        if data is None: return
+        if not data: return
 
         file_name = osp.join(self._snapshot_dir, file_name)
         if mode == 'joblib':

@@ -117,18 +117,23 @@ class RolloutWorker:
             policy_name = config.get('policy_name'),
             policy_config = config.get('policy_config')
             )
+        # env for sample steps for collect
         self.env = env_maker(
             env_name = config.get('env_name'),
             env_config = config.get('env_config')
         )
+        # env for sample episode for evalute
         self.eval_env = env_maker(
             env_name = config.get('env_name'),
             env_config = config.get('env_config')
         )
-        self.max_step = get_max_episode_steps(self.env)
-        self.max_act = self.env.action_space.high[0]
+        # share the obs norm rms
+        if self.config.get('obs_norm'):
+            self.eval_env.obs_rms = self.env.obs_rms
+
         update_env_seed(self.env, config.get('seed'), worker_id)
         update_env_seed(self.eval_env, config.get('seed'), worker_id)
+        self.max_step = get_max_episode_steps(self.env)
         self.saver = RolloutSaver(save_info=True)
 
         self._cur_eplen = 0
@@ -149,8 +154,7 @@ class RolloutWorker:
         while step < sample_step:
             terminal = False
             act = policy.get_action(self._cur_obs)
-            clipped_act = np.clip(act, -self.max_act, self.max_act)
-            next_obs, rew, done, info = env.step(clipped_act)
+            next_obs, rew, done, info = env.step(act)
             self._cur_eprew += rew
             self._cur_eplen += 1
             if done and self._cur_eplen != self.max_step:
@@ -179,8 +183,7 @@ class RolloutWorker:
         obs = env.reset()
         while not done:
             act = policy.get_action(obs)
-            clipped_act = np.clip(act, -self.max_act, self.max_act)
-            next_obs, rew, done, info = env.step(clipped_act)
+            next_obs, rew, done, info = env.step(act)
             ep_rew += rew
             ep_len += 1
             if done and ep_len != self.max_step:
@@ -205,3 +208,6 @@ class RolloutWorker:
     def stop(self):
         """Releases all resources used by this RolloutWorker."""
         self.env.close()
+
+    def get_obs_statistics(self):
+        return (self.env.obs_rms.mean, self.env.obs_rms.var)

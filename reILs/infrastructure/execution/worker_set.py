@@ -1,4 +1,5 @@
 import ray
+import numpy as np
 
 from typing import Optional, List, Dict, Union, Callable
 from reILs.infrastructure.execution import RolloutWorker
@@ -77,6 +78,8 @@ class WorkerSet:
         # Only sync if we have remote workers or `from_worker` is provided.
         weights = None
         if self.remote_workers() is not None:
+
+            # sync nerual network params
             weights = self.local_worker().get_weights()
             # Put weights only once into object store and use same object
             # ref to synch to all workers.
@@ -84,6 +87,16 @@ class WorkerSet:
             # Sync to all remote workers in this WorkerSet.
             for to_worker in self.remote_workers():
                 to_worker.set_weights.remote(weights_ref)
+
+            # sync obs_rms from remote envs to local env
+            if hasattr(self.local_worker().env, 'obs_rms'):
+                obs_statistics = ray.get(
+                    [worker.get_obs_statistics.remote() for worker in self.remote_workers()]
+                )
+                obs_mean, obs_var = np.mean(obs_statistics, axis=0)
+                self.local_worker().env.obs_rms.mean = obs_mean
+                self.local_worker().env.obs_rms.var = obs_var
+
 
     def add_workers(self, num_workers: int):
         """Creates and adds a number of remote workers to this worker set.

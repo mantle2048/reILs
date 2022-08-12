@@ -29,9 +29,8 @@ def get_parser():
     parser.add_argument('--lr-decay', action='store_true')
     parser.add_argument('--layers', '-l', nargs='+', type=int, default=[64,64])
     parser.add_argument('--epsilon', type=float, default=0.2)
-    parser.add_argument('--target_kl', type=float, default=None)
     parser.add_argument("--recompute-adv", action='store_true')
-    parser.add_argument("--rew-norm", action='store_true')
+    parser.add_argument("--ret-norm", action='store_true')
     parser.add_argument("--adv-norm", action='store_true')
     return parser
 

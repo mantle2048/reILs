@@ -4,7 +4,7 @@ import torch
 import os
 import warnings
 import ray
-from typing import Optional, List, Dict, Union, Callable
+from typing import Optional, List, Dict, Union, Callable, overload
 from reILs.infrastructure.execution import RolloutSaver
 from reILs.infrastructure.datas import Batch
 from reILs.infrastructure.utils.gym_util import get_max_episode_steps
@@ -121,14 +121,59 @@ class RolloutWorker:
             env_name = config.get('env_name'),
             env_config = config.get('env_config')
         )
+        self.eval_env = env_maker(
+            env_name = config.get('env_name'),
+            env_config = config.get('env_config')
+        )
         self.max_step = get_max_episode_steps(self.env)
         self.max_act = self.env.action_space.high[0]
         update_env_seed(self.env, config.get('seed'), worker_id)
+        update_env_seed(self.eval_env, config.get('seed'), worker_id)
         self.saver = RolloutSaver(save_info=True)
 
-    def sample(self) -> Batch:
+        self._cur_eplen = 0
+        self._cur_eprew = 0.
+        self._cur_obs = self.env.reset()
+
+    def sample(self, sample_step: int=None) -> Batch:
+
+        if sample_step:
+            return self.sample_steps(sample_step)
+        else:
+            return self.sample_episode()
+
+    def sample_steps(self, sample_step: int) -> Batch:
+        step = 0
         step_list = []
         env, policy = self.env, self.policy
+        while step < sample_step:
+            terminal = False
+            act = policy.get_action(self._cur_obs)
+            clipped_act = np.clip(act, -self.max_act, self.max_act)
+            next_obs, rew, done, info = env.step(clipped_act)
+            self._cur_eprew += rew
+            self._cur_eplen += 1
+            if done and self._cur_eplen != self.max_step:
+                terminal = True
+            step_return = Batch(
+                obs=self._cur_obs, act=act, next_obs=next_obs,
+                rew=rew, done=done, info=info, terminal=terminal,
+                ep_len=self._cur_eplen, ep_rew=self._cur_eprew,
+            )
+            step_list.append(step_return)
+            if done:
+                self._cur_obs = env.reset()
+                self._cur_eplen = 0
+                self._cur_eprew = 0.
+            else:
+                self._cur_obs = next_obs
+            step += 1
+        batch = Batch.stack(step_list)
+        return batch
+
+    def sample_episode(self) -> Batch:
+        step_list = []
+        env, policy = self.eval_env, self.policy
         ep_rew, ep_len, step_list = 0.0, 0, []
         done, terminal = False, False
         obs = env.reset()

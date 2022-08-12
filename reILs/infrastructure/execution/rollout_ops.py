@@ -39,15 +39,16 @@ def synchronous_parallel_sample(
     elif max_steps:
         steps = 0
         episodes = 0
+        worker_step = int(np.round(max_steps / len(remote_workers)))
         while steps < max_steps:
             batches = ray.get(
-                [worker.sample.remote() for worker in remote_workers]
+                [worker.sample.remote(sample_step=worker_step) for worker in remote_workers]
+                # [worker.sample.remote() for worker in remote_workers]
             )
             for batch in batches:
                 surplus_steps = max_steps - steps
                 if surplus_steps < len(batch):
                     batch = batch[:surplus_steps]
-                batch['eps_id'] = np.full(len(batch), episodes)
                 batch_list.append(batch)
                 episodes += 1
                 steps += len(batch)

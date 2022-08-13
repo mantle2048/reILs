@@ -1,17 +1,40 @@
-from typing import Dict 
 from reILs.envs import make_env
 from reILs.infrastructure.execution import WorkerSet
+from reILs.algos.ppo import PPOAgent
+from reILs.infrastructure.datas.utils.load_dataset import load_d4rl_dataset
+from reILs.infrastructure.datas import ReplayBuffer, Batch
+from typing import Dict,Union,List,Tuple
 
-class GAILAgent:
+class GAILAgent(PPOAgent):
 
     def __init__(self, config: Dict):
+        super().__init__(config)
+        self.expert_buffer = load_d4rl_dataset(config['env_name'])
+        self.disc_update_num = config.setdefault('disc_update_num', 4)
 
-        self.obs_dim = config['obs_dim']
-        self.act_dim = config['act_dim']
-        self.max_act = config['max_act']
+    def process_fn(self, batch: Union[List[Batch], Batch]) -> Batch:
+        if isinstance(batch, List):
+            batch = Batch.cat(batch)
+        batch = self.get_rew(batch)
+        batch = super().process_fn(batch)
+        return batch
 
-        print("Observations shape:", args.state_shape)
-        print("Actions shape:", args.action_shape)
-        print("Action range:", np.min(env.action_space.low), np.max(env.action_space.high))
+    def train(self, batch_size: int, repeat: int) -> Dict:
 
-        self.worker_set = WorkerSet
+        disc_train_log = {}
+        pi_batch = self.sample(0)
+        disc_batch_size = len(pi_batch) // self.disc_update_num
+        for pi_minibatch in \
+                pi_batch.split(disc_batch_size, merge_last=True):
+            exp_minibatch = self.expert_buffer.sample(disc_batch_size)
+            disc_train_log = \
+                self.policy.update_disc(pi_minibatch, exp_minibatch)
+        pi_train_log = super().train(batch_size, repeat)
+        train_log = {**disc_train_log, **pi_train_log}
+        return train_log
+
+    def get_rew(self, batch: Batch):
+        obss, acts = batch.obs, batch.act
+        batch['rew'] = self.policy.run_disc_prediction(obss, acts)
+        return batch
+

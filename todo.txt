@@ -1,3 +1,4 @@
 TODO: convert n_itr to env_steps
 TODO: test rollout saver
 TODO: see why ppo dist entropy is negative
+TODO: add resume

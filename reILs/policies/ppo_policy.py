@@ -93,7 +93,7 @@ class PPOPolicy(nn.Module):
         self,
         batch: Batch = None,
         **kwargs: Any
-    )-> Dict[str, List[float]]:
+    )-> Dict[str, float]:
         '''
             Update the policy using ppo-clip surrogate object
         '''

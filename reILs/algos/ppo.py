@@ -49,8 +49,9 @@ class PPOAgent:
             self.lr_scheduler = None
 
 
-    def process_fn(self, batch_list: List[Batch]) -> Batch:
-        batch = Batch.cat(batch_list)
+    def process_fn(self, batch: Union[List[Batch], Batch]) -> Batch:
+        if isinstance(batch, List):
+            batch = Batch.cat(batch)
         batch = self.get_log_prob(batch)
         batch = self.get_returns_and_advs(batch)
         return batch
@@ -77,7 +78,7 @@ class PPOAgent:
             Training a PPO agent refers to updating its policy using the given observations/actions
             and the calculated qvals/advantages that come from the seen rewards.
         """
-        train_logs = []
+        train_log = {}
         for step in range(repeat):
             batch = self.sample(0)
             if self.recompute_adv and step > 0:
@@ -87,14 +88,12 @@ class PPOAgent:
                     mean, std = minibatch.adv.mean(), minibatch.adv.std()
                     minibatch.adv = (minibatch.adv - mean) / std  # per-batch norm
                 train_log = self.policy.update(minibatch)
-                train_logs.append(train_log)
         if self.lr_scheduler:
             self.lr_scheduler.step()
-            train_logs[-1]['Learning Rate'] = self.lr_scheduler.get_lr()[0]
+            train_log['Learning Rate'] = self.lr_scheduler.get_lr()[0]
         self.workers.sync_weights()
 
-
-        return train_logs
+        return train_log
 
     def estimate_returns_and_advantages(
         self,

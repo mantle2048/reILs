@@ -1,6 +1,6 @@
-from reILs.scripts.run_ppo import get_parser, get_config, main
+from reILs.scripts.run_gail import get_parser, get_config, main
 from reILs.rl_trainer import RL_Trainer
-from reILs.algos import PPOAgent
+from reILs.algos import GAILAgent
 # import ray
 # ray.init(
 #     ignore_reinit_error=True,
@@ -13,21 +13,25 @@ from reILs.algos import PPOAgent
 if __name__ == '__main__':
     parser = get_parser()
     args = parser.parse_args([
+        '--disc-lr',
+        '2.5e-5',
+        '--disc-update-num',
+        '2',
         '--env-name',
-        'Ant-v3',
+        'HalfCheetah-v2',
         '--seed',
-        '3',
+        '0',
         '--n-itr',
-        '1501',
+        '601',
         '--num-workers',
         '10',
         '--step-per-itr',
-        '2000',
+        '5000',
+        '--lr-decay',
         '--repeat-per-itr',
         '10',
         '--batch-size',
         '100',
-        '--lr-decay',
         '--tabular-log-freq',
         '5',
         '--gae-lambda',
@@ -35,8 +39,10 @@ if __name__ == '__main__':
         '--lr',
         '3e-4',
         '--obs-norm',
-        '--ret-norm',
-        '--recompute-adv'
+        '--entropy-coeff',
+        '0.001',
+        # '--recompute-adv',
+        # '--ret-norm',
         # '--adv-norm',
 
     ])

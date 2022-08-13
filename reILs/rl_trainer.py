@@ -97,7 +97,6 @@ class RL_Trainer(object):
                 num_episodes=self.config.get('episode_per_itr', None),
                 num_steps=self.config.get('step_per_itr', None),
             )
-
             train_batch = self.agent.process_fn(train_batch_list)
             self.total_envsteps += len(train_batch.rew)
 
@@ -105,15 +104,14 @@ class RL_Trainer(object):
             self.agent.add_to_replay_buffer(train_batch)
 
             ## train agent (using sampled data from replay buffer)
-            train_logs = self.agent.train(
+            train_log = self.agent.train(
                 batch_size = self.config.get('batch_size', len(train_batch)),
                 repeat = self.config.get('repeat_per_itr', 1),
             )
-
             ## log/save
             if self.logtabular:
                 ## perform tabular and video
-                self.perform_logging(itr, train_logs)
+                self.perform_logging(itr, train_log)
 
             if self.logparam:
                 self.logger.save_itr_params(itr, self.agent.policy.get_weights())
@@ -126,12 +124,9 @@ class RL_Trainer(object):
     ####################################
     ####################################
 
-    def perform_logging(self, itr, train_logs):
-
-        last_log = train_logs[-1]
+    def perform_logging(self, itr, train_log):
 
         #######################
-
         if itr == 0:
             ## log and save config_json
             self.logger.log_variant('config.json', self.config)
@@ -179,7 +174,7 @@ class RL_Trainer(object):
             self.logger.record_tabular("EvalEpLen", np.mean(eval_ep_lens))
             self.logger.record_tabular("TotalEnvInteracts", self.total_envsteps)
             self.logger.record_tabular("Time", (time.time() - self.start_time) / 60)
-            self.logger.record_dict(last_log)
+            self.logger.record_dict(train_log)
 
             self.logger.dump_tabular(with_prefix=True, with_timestamp=False)
 

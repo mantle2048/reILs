@@ -49,7 +49,9 @@ def preprocess_d4rl_dataset(dataset: Dict) -> Dict:
     return dataset
 
 def load_d4rl_dataset(env_name: str) -> 'ReplayBuffer':
-    env = gym.make(env_name)
+    expert_data_name =  '-'.join([env_name.split('-')[0].lower(), 'expert', 'v2'])
+    print(f"Load d4rl dataset: {expert_data_name}")
+    env = gym.make(expert_data_name)
     dataset = preprocess_d4rl_dataset(env.get_dataset())
     data = Batch(dataset)
     replay_buffer = ReplayBuffer.from_data(
@@ -60,3 +62,5 @@ def load_d4rl_dataset(env_name: str) -> 'ReplayBuffer':
         next_obs=dataset["next_obs"]
     )
     return replay_buffer
+    
+

@@ -77,7 +77,7 @@ class WorkerSet:
 
         # Only sync if we have remote workers or `from_worker` is provided.
         weights = None
-        if self.remote_workers() is not None:
+        if len(self.remote_workers()):
 
             # sync nerual network params
             weights = self.local_worker().get_weights()
@@ -107,7 +107,7 @@ class WorkerSet:
                 WorkerSet.
         Raises:
             RayError: If any of the constructed remote workers is not up and running
-            properly.
+            properly
         """
         old_num_workers = len(self._remote_workers)
         self._remote_workers.extend(

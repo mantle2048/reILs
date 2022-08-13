@@ -82,7 +82,7 @@ def from_numpy(*args, **kwargs):
 def to_numpy(tensor):
     return tensor.to('cpu').detach().numpy()
 
-def init_weights(m: nn.Module, gain: float = 1):
+def init_weights(m: nn.Module, gain: float = np.sqrt(2)):
     """
         Orthogonal initialization (used in PPO and A2C)
     """

@@ -1,4 +1,5 @@
 import argparse
+import json
 
 from typing import Dict
 from reILs.rl_trainer import RL_Trainer
@@ -32,12 +33,17 @@ def get_parser():
     parser.add_argument('--gae-lambda', type=float, default=None)
     parser.add_argument('--dont-standardize-advantages', '-dsa', action='store_true')
     parser.add_argument('--lr', type=float, default=1e-3)
-    parser.add_argument('--lr-decay', action='store_true')
     parser.add_argument('--layers', '-l', nargs='+', type=int, default=[64,64])
     parser.add_argument('--epsilon', type=float, default=0.2)
     parser.add_argument("--recompute-adv", action='store_true')
     parser.add_argument("--ret-norm", action='store_true')
     parser.add_argument("--adv-norm", action='store_true')
+    parser.add_argument(
+        '--lr-schedule',
+        default={},
+        type=lambda x: {k.strip():json.loads(v) for k,v in (i.split(':') for i in x.split(';'))},
+        help='lr schedule i.e. "--lr-schedule a: [[500, 0.1]]; b: [[500, 0.001]]" '
+    )
     return parser
 
 def get_config(args: argparse.Namespace) -> Dict:
@@ -52,7 +58,7 @@ def get_config(args: argparse.Namespace) -> Dict:
         'layers': args.layers,
         'lr': args.lr,
         'disc_lr': args.disc_lr,
-        'lr_decay': args.lr_decay,
+        'lr_schedule': args.lr_schedule,
         'epsilon': args.epsilon,
         'entropy_coeff': args.entropy_coeff,
         'grad_clip': args.grad_clip,

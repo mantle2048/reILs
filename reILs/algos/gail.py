@@ -1,3 +1,4 @@
+from torch.optim.lr_scheduler import LambdaLR, ExponentialLR
 from reILs.envs import make_env
 from reILs.infrastructure.execution import WorkerSet
 from reILs.algos.ppo import PPOAgent

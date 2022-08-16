@@ -19,6 +19,7 @@ import errno
 import time
 import torch
 import tempfile
+import shelve
 
 from .tabulate import tabulate
 from reILs import user_config as conf
@@ -90,6 +91,8 @@ class Logger(object):
         self._snapshot_gap = 1
 
         self._video_log_dir = None
+
+        self._shelf = None
 
         self._log_tabular_only = False
         self._header_printed = False
@@ -294,6 +297,7 @@ class Logger(object):
         self._prefix_str = ''.join(self._prefixes)
 
     def save_itr_params(self, itr, params):
+        self._shelf
         if self._snapshot_dir:
             if self._snapshot_mode == 'all':
                 file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)

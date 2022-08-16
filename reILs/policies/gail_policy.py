@@ -16,14 +16,16 @@ class GAILPolicy(PPOPolicy):
             ptu.build_mlp(
                 input_size=self.obs_dim + self.act_dim,
                 output_size=1,
-                layers=self.layers
+                layers=self.layers,
             )
         self.disc_net.to(ptu.device)
         self.disc_net.apply(ptu.init_weights)
+        ptu.scale_last_layer(self.disc_net)
         self.disc_optimizer = optim.Adam(
             self.disc_net.parameters(),
             self.config.get('disc_lr'),
         )
+        self.optimizers.update(Disc=self.disc_optimizer)
 
     def update_disc(
         self,

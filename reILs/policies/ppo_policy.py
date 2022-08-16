@@ -27,6 +27,7 @@ class PPOPolicy(nn.Module):
         self.entropy_coeff = config['entropy_coeff']
         self.grad_clip = config['grad_clip']
         self.epsilon = config['epsilon']
+        self.optimizers = {}
 
         # discrete or continus
         if self.discrete:
@@ -43,7 +44,8 @@ class PPOPolicy(nn.Module):
             self.logits_net = None
             self.mean_net = ptu.build_mlp(input_size=self.obs_dim,
                                             output_size=self.act_dim,
-                                            layers=self.layers)
+                                            layers=self.layers,
+                                          )
             self.logstd = nn.Parameter(
                     -0.5 * torch.ones(self.act_dim, dtype=torch.float32, device=ptu.device))
 
@@ -52,6 +54,7 @@ class PPOPolicy(nn.Module):
             self.optimizer = optim.Adam(
                 params = itertools.chain(self.mean_net.parameters(),[self.logstd]),
                 lr = self.lr)
+        self.optimizers.update(Pi=self.optimizer)
 
         # init baseline
         self.baseline = ptu.build_mlp(
@@ -64,6 +67,8 @@ class PPOPolicy(nn.Module):
             self.baseline.parameters(),
             self.lr,
         )
+        self.optimizers.update(Baseline=self.baseline_optimizer)
+
         self.apply(ptu.init_weights)
         # do last policy layer scaling, this will make initial actions have (close to)
         # 0 mean and std, and will help boost performances,

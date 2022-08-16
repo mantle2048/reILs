@@ -2,7 +2,7 @@ import numpy as np
 import reILs.algos as algos
 
 from scipy.signal import lfilter
-from torch.optim.lr_scheduler import LambdaLR, ExponentialLR
+from torch.optim.lr_scheduler import LambdaLR
 from typing import Dict,Union,List,Tuple
 
 from numba import njit
@@ -13,6 +13,7 @@ from reILs.infrastructure.execution import WorkerSet
 from reILs.infrastructure.utils import utils
 from reILs.infrastructure.utils import pytorch_util as ptu
 from reILs.infrastructure.utils.statistics import RunningMeanStd
+from reILs.infrastructure.utils.lr_scheduler import PiecewiseSchedule, MultipleLRSchedulers
 
 
 class PPOAgent:
@@ -40,14 +41,8 @@ class PPOAgent:
         self.adv_norm = config.setdefault('adv_norm', False)
         self.ret_rms = RunningMeanStd()
         self._eps = 1e-8
-
-        if self.config.get("lr_decay"):
-            # self.lr_scheduler = LambdaLR(
-            # self.policy.optimizer, lr_lambda=lambda itr: 1 - itr / self.config.get('n_itr'))
-            self.lr_scheduler = ExponentialLR(self.policy.optimizer, gamma=0.999)
-        else:
-            self.lr_scheduler = None
-
+        self.lr_schedulers = \
+            self.create_lr_scheduler(self.config.get('lr_schedule', {}))
 
     def process_fn(self, batch: Union[List[Batch], Batch]) -> Batch:
         if isinstance(batch, List):
@@ -72,6 +67,14 @@ class PPOAgent:
         batch['log_prob'] = log_probs
         return batch
 
+    def create_lr_scheduler(self, schedule_dict: Dict[str, List[List]]):
+        lr_schedulers = MultipleLRSchedulers()
+        for k, v in schedule_dict.items():
+            assert k in self.policy.optimizers.keys(), f'Not found corresponding {k} optimizer'
+            sche = PiecewiseSchedule(endpoints=schedule_dict[k])
+            lr_schedulers.update({k: LambdaLR(self.policy.optimizers[k], lr_lambda=sche)})
+        return lr_schedulers
+
     def train(self, batch_size: int, repeat: int) -> Dict:
 
         """
@@ -88,11 +91,9 @@ class PPOAgent:
                     mean, std = minibatch.adv.mean(), minibatch.adv.std()
                     minibatch.adv = (minibatch.adv - mean) / std  # per-batch norm
                 train_log = self.policy.update(minibatch)
-        if self.lr_scheduler:
-            self.lr_scheduler.step()
-            train_log['Learning Rate'] = self.lr_scheduler.get_lr()[0]
+        self.lr_schedulers.step()
+        train_log.update(self.lr_schedulers.get_last_lr())
         self.workers.sync_weights()
-
         return train_log
 
     def estimate_returns_and_advantages(
@@ -137,10 +138,6 @@ class PPOAgent:
             statistics['obs_mean'] = self.env.obs_rms.mean
             statistics['obs_var'] = self.env.obs_rms.var
         return statistics
-
-    def resume(self):
-        pass
-
 
 @njit
 def _gae_return(

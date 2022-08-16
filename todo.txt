@@ -1,4 +1,5 @@
-TODO: convert n_itr to env_steps
+TODO: change itr 0 -> itr 1 and add full zero itr 0
+TODO: add checkout saver
 TODO: test rollout saver
 TODO: see why ppo dist entropy is negative
-TODO: add resume
+TODO: add base_policy and base_agent

@@ -12,6 +12,7 @@ from reILs.infrastructure.loggers import setup_logger
 from reILs.infrastructure.utils import pytorch_util as ptu
 from reILs.infrastructure.execution.evaluate import evaluate
 from reILs.infrastructure.execution.collect import collect
+from reILs.infrastructure.utils.lr_scheduler import PiecewiseSchedule
 
 # how many rollouts to save as videos
 MAX_NVIDEO = 2
@@ -41,10 +42,6 @@ class RL_Trainer(object):
             use_gpu=not self.config['no_gpu'],
             gpu_id=self.config['which_gpu']
         )
-
-        ###############
-        ## LR Shceduler
-        ##############
 
         #############
         ## ENV
@@ -88,6 +85,7 @@ class RL_Trainer(object):
         self.start_time = time.time()
 
         for itr in range(n_itr):
+
             ## decide if tabular should be logged
             self._refresh_logger_flags(itr)
 

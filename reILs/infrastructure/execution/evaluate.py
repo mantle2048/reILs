@@ -13,6 +13,7 @@ from collections import defaultdict
 from reILs.infrastructure.loggers import VideoRecorder
 from reILs.infrastructure.execution import RolloutSaver, synchronous_parallel_sample, WorkerSet 
 from reILs.infrastructure.datas import Batch
+from reILs.infrastructure.utils import pytorch_util as ptu
 
 "yanked and modified from https://github.com/ray-project/ray/blob/130b7eeaba/rllib/evaluate.py"
 
@@ -28,15 +29,18 @@ def create_parser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Roll out a reinforcement learning agent given a checkpoint model.",
-    )
-
+        )
     parser.add_argument(
         "exp-dir",
         type=str,
         nargs='?',
         help="exp_dir from which to roll out.",
         )
-
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda" if torch.cuda.is_available() else "cpu"
+        )
     parser.add_argument(
         "--local-mode",
         action="store_true",
@@ -44,6 +48,11 @@ def create_parser():
         )
     parser.add_argument(
         "--render", action="store_true", help="Render the environment while rollouting"
+        )
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=0,
         )
     parser.add_argument(
         "--steps",
@@ -89,28 +98,36 @@ def keep_going(steps, num_steps, episodes, num_episodes):
 def run(args, parser):
     # Load configuration from exp_dir.
     exp_dir = args.exp_dir
-    if exp_dir:
-        config_dir = osp.join(args.exp_dir, 'config.json')
-        params_dir = osp.join(args.exp_dir, 'params.pkl')
+    config_dir = osp.join(args.exp_dir, 'config.json')
+    params_dir = osp.join(args.exp_dir, 'params.pkl')
 
     if not osp.exists(config_dir) or not osp.exists(params_dir):
         raise ValueError(
             f"Could not find params.pkl or config.json in exp_dir: {exp_dir}!"
             )
-    else:
-        with open(config_dir, 'r') as f:
-            config = json.loads(f)
-        agent_class = config['agent_class']
-        agent = agent_class(
-            env=config.get('env_name'),
-            config=config.get('agent_config')
-        )
-        agent.resume(params=params_dir)
+    with open(config_dir, 'r') as f:
+        config = json.loads(f)
+        config['num_workers'] = args.num_workers
+        config['device'] = args.devie
 
+    # Init GPU
+    ptu.init_gpu(
+        use_gpu=not config.get('no_gpu'),
+        gpu_id=config.get('device'),
+    )
+    agent_class = config.get('agent_class')
+    agent = agent_class(
+        env=config.get('env_name'),
+        config=config.get('agent_config')
+    )
+    agent.policy.set_weights(torch.load(
+        params_dir,
+        map_location=args.device
+        )
+    )
     ray.init(local_mode=args.local_mode)
     num_steps = int(args.steps)
     num_episodes = int(args.episodes)
-
     # Do the actual rollout.
     with RolloutSaver(
         args.exp_dir,
@@ -158,7 +175,7 @@ def evaluate(
         done, ep_rew, ep_len, step_list = False, 0.0, 0, []
         obs = env.reset()
         if render:
-            img_obs = [env.render(mode='rgb_array')]
+            img_obs = env.render(mode='rgb_array')
         while not done and keep_going(steps, num_steps, episodes, num_episodes):
             act = policy.get_action(obs)
             next_obs, rew, done, info = env.step(act)
@@ -169,7 +186,7 @@ def evaluate(
                 eps_id=episodes, ep_len=ep_len, ep_rew=ep_rew,
             )
             if render:
-                img_obs = [env.render(mode='rgb_array')]
+                img_obs = env.render(mode='rgb_array')
             step_list.append(step_return)
             obs = next_obs
             steps += 1

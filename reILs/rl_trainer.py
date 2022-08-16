@@ -84,7 +84,7 @@ class RL_Trainer(object):
         self.total_envsteps = 0
         self.start_time = time.time()
 
-        for itr in range(n_itr):
+        for itr in range(1, n_itr + 1):
 
             ## decide if tabular should be logged
             self._refresh_logger_flags(itr)

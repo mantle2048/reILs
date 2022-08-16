@@ -34,6 +34,7 @@ def get_parser():
     parser.add_argument("--adv-norm", action='store_true')
     parser.add_argument(
         '--lr-schedule',
+        default={},
         type=lambda x: {k.strip():json.loads(v) for k,v in (i.split(':') for i in x.split(';'))},
         help='lr schedule i.e. "--lr-schedule a: [[500, 0.1]]; b: [[500, 0.001]]"'
     )

@@ -22,7 +22,7 @@ if __name__ == '__main__':
         '--seed',
         '4',
         '--n-itr',
-        '2001',
+        '1',
         '--num-workers',
         '10',
         '--step-per-itr',
@@ -41,8 +41,8 @@ if __name__ == '__main__':
         '--entropy-coeff',
         '0.001',
         '--lr-schedule',
-        'Pi: [[0, 1.0], [1000, 0.2]]; \
-         Disc: [[0, 1.0], [1000, 0.4]]',
+        'Pi: [[0, 1.0], [1000, 0.1]]; \
+         Disc: [[0, 1.0], [1000, 0.1]]',
         # '--recompute-adv',
         # '--ret-norm',
         # '--adv-norm',

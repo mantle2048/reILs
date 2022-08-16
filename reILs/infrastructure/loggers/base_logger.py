@@ -271,6 +271,10 @@ class Logger(object):
     def dump_tabular(self, *args, **kwargs):
         wh = kwargs.pop("write_header", None)
 
+        if self._tabular[0][-1] == 1:
+            assert self._tabular[0][0] == 'Itr'
+            self._dump_zero_tabular(*args, **kwargs)
+
         if len(self._tabular) > 0:
             if self._log_tabular_only:
                 self.table_printer.print_tabular(self._tabular)
@@ -292,12 +296,40 @@ class Logger(object):
                 tabular_fd.flush()
             del self._tabular[:]
 
+    def _dump_zero_tabular(self, *args, **kwargs):
+        wh = kwargs.pop("write_header", None)
+        zero_tabular = {}
+
+        for key, val in dict(self._tabular).items():
+            if type(val) == int:
+                zero_tabular[key] = 0
+            elif type(val) in (float, np.float32, np.float64):
+                zero_tabular[key] = 0.
+            elif type(val) == np.ndarray:
+                zero_tabular[key] = np.array(0., dtype=np.float32)
+            elif type(val) == np.float64:
+                zero_tabular[key] = np.array(0., dtype=np.float32)
+            else:
+                raise ValueError()
+
+        wh = kwargs.pop("write_header", None)
+        for tabular_fd in list(self._tabular_fds.values()):
+            writer = csv.DictWriter(tabular_fd,
+                                    fieldnames=list(zero_tabular.keys()))
+            if wh or (
+                    wh is None and tabular_fd not in self._tabular_header_written):
+                writer.writeheader()
+                self._tabular_header_written.add(tabular_fd)
+            writer.writerow(zero_tabular)
+            tabular_fd.flush()
+
     def pop_prefix(self, ):
         del self._prefixes[-1]
         self._prefix_str = ''.join(self._prefixes)
 
     def save_itr_params(self, itr, params):
-        self._shelf
+        if self._shelf is None:
+            self._shelf = None
         if self._snapshot_dir:
             if self._snapshot_mode == 'all':
                 file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)

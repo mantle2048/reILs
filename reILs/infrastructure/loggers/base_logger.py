@@ -21,6 +21,7 @@ import torch
 import tempfile
 import shelve
 
+from typing import Dict, Tuple, List
 from .tabulate import tabulate
 from reILs import user_config as conf
 
@@ -92,11 +93,12 @@ class Logger(object):
 
         self._video_log_dir = None
 
-        self._shelf = None
-
         self._log_tabular_only = False
         self._header_printed = False
         self.table_printer = TerminalTablePrinter()
+
+        self._shelf = None
+        self._dump_cnt = 0
 
     @property
     def exp_dir(self):
@@ -271,8 +273,7 @@ class Logger(object):
     def dump_tabular(self, *args, **kwargs):
         wh = kwargs.pop("write_header", None)
 
-        if self._tabular[0][-1] == 1:
-            assert self._tabular[0][0] == 'Itr'
+        if self._dump_cnt == 0:
             self._dump_zero_tabular(*args, **kwargs)
 
         if len(self._tabular) > 0:
@@ -295,33 +296,7 @@ class Logger(object):
                 writer.writerow(tabular_dict)
                 tabular_fd.flush()
             del self._tabular[:]
-
-    def _dump_zero_tabular(self, *args, **kwargs):
-        wh = kwargs.pop("write_header", None)
-        zero_tabular = {}
-
-        for key, val in dict(self._tabular).items():
-            if type(val) == int:
-                zero_tabular[key] = 0
-            elif type(val) in (float, np.float32, np.float64):
-                zero_tabular[key] = 0.
-            elif type(val) == np.ndarray:
-                zero_tabular[key] = np.array(0., dtype=np.float32)
-            elif type(val) == np.float64:
-                zero_tabular[key] = np.array(0., dtype=np.float32)
-            else:
-                raise ValueError()
-
-        wh = kwargs.pop("write_header", None)
-        for tabular_fd in list(self._tabular_fds.values()):
-            writer = csv.DictWriter(tabular_fd,
-                                    fieldnames=list(zero_tabular.keys()))
-            if wh or (
-                    wh is None and tabular_fd not in self._tabular_header_written):
-                writer.writeheader()
-                self._tabular_header_written.add(tabular_fd)
-            writer.writerow(zero_tabular)
-            tabular_fd.flush()
+        self._dump_cnt += 1
 
     def pop_prefix(self, ):
         del self._prefixes[-1]
@@ -355,6 +330,33 @@ class Logger(object):
 
     def close(self):
         pass
+
+    def _dump_zero_tabular(self, *args, **kwargs):
+        wh = kwargs.pop("write_header", None)
+        zero_tabular = {}
+
+        for key, val in dict(self._tabular).items():
+            if type(val) == int:
+                zero_tabular[key] = 0
+            elif type(val) in (float, np.float32, np.float64):
+                zero_tabular[key] = 0.
+            elif type(val) == np.ndarray:
+                zero_tabular[key] = np.array(0., dtype=np.float32)
+            elif type(val) == np.float64:
+                zero_tabular[key] = np.array(0., dtype=np.float32)
+            else:
+                raise ValueError()
+
+        wh = kwargs.pop("write_header", None)
+        for tabular_fd in list(self._tabular_fds.values()):
+            writer = csv.DictWriter(tabular_fd,
+                                    fieldnames=list(zero_tabular.keys()))
+            if wh or (
+                    wh is None and tabular_fd not in self._tabular_header_written):
+                writer.writeheader()
+                self._tabular_header_written.add(tabular_fd)
+            writer.writerow(zero_tabular)
+            tabular_fd.flush()
 
     ########################################
     # Help Functions for Tensorboard & Aim #

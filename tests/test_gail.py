@@ -22,7 +22,7 @@ if __name__ == '__main__':
         '--seed',
         '4',
         '--n-itr',
-        '1',
+        '500',
         '--num-workers',
         '10',
         '--step-per-itr',

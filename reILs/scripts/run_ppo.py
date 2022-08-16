@@ -25,7 +25,6 @@ def get_parser():
     parser.add_argument('--entropy-coeff', type=float, default=0.)
     parser.add_argument('--grad-clip', type=float, default=None)
     parser.add_argument('--gae-lambda', type=float, default=None)
-    parser.add_argument('--dont-standardize-advantages', '-dsa', action='store_true')
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--layers', '-l', nargs='+', type=int, default=[64,64])
     parser.add_argument('--epsilon', type=float, default=0.2)

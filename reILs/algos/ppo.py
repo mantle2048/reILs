@@ -1,48 +1,24 @@
 import numpy as np
 import reILs.algos as algos
 
-from scipy.signal import lfilter
-from torch.optim.lr_scheduler import LambdaLR
+from numba import njit
 from typing import Dict,Union,List,Tuple
 
-from numba import njit
-from reILs.envs import make_env
-from reILs.policies import make_policy
+from .base import OnAgent
 from reILs.infrastructure.datas import ReplayBuffer, Batch
-from reILs.infrastructure.execution import WorkerSet
-from reILs.infrastructure.utils import utils
-from reILs.infrastructure.utils import pytorch_util as ptu
-from reILs.infrastructure.utils.statistics import RunningMeanStd
-from reILs.infrastructure.utils.lr_scheduler import PiecewiseSchedule, MultipleLRSchedulers
 
-
-class PPOAgent:
+class PPOAgent(OnAgent):
 
     def __init__(self, config: Dict):
 
         # init params
         self.config = config
-        self.workers = WorkerSet(
-            num_workers = config['num_workers'],
-            env_maker = make_env,
-            policy_maker = make_policy,
-            config = config
-        )
-        self.env = self.workers.local_worker().env
-        self.policy = self.workers.local_worker().policy
-        self.replay_buffer = ReplayBuffer(config['step_per_itr'])
-
+        super().__init__(config)
         self.gamma = config.get('gamma')
-        self.standardize_advantages = \
-                config.get('standardize_advantages')
         self.gae_lambda = config.get('gae_lambda')
         self.recompute_adv = config.get('recompute_adv')
         self.ret_norm = config.setdefault('ret_norm', False)
         self.adv_norm = config.setdefault('adv_norm', False)
-        self.ret_rms = RunningMeanStd()
-        self._eps = 1e-8
-        self.lr_schedulers = \
-            self.create_lr_scheduler(self.config.get('lr_schedule', {}))
 
     def process_fn(self, batch: Union[List[Batch], Batch]) -> Batch:
         if isinstance(batch, List):
@@ -66,14 +42,6 @@ class PPOAgent:
         log_probs =  self.policy._get_log_prob(batch.obs, batch.act)
         batch['log_prob'] = log_probs
         return batch
-
-    def create_lr_scheduler(self, schedule_dict: Dict[str, List[List]]):
-        lr_schedulers = MultipleLRSchedulers()
-        for k, v in schedule_dict.items():
-            assert k in self.policy.optimizers.keys(), f'Not found corresponding {k} optimizer'
-            sche = PiecewiseSchedule(endpoints=schedule_dict[k])
-            lr_schedulers.update({k: LambdaLR(self.policy.optimizers[k], lr_lambda=sche)})
-        return lr_schedulers
 
     def train(self, batch_size: int, repeat: int) -> Dict:
 
@@ -125,19 +93,6 @@ class PPOAgent:
         else:
             returns = unnormalized_returns
         return returns, advs
-
-    def sample(self, batch_size: int) -> Batch:
-        return self.replay_buffer.sample(batch_size)
-
-    def add_to_replay_buffer(self, batch: Batch):
-        self.replay_buffer.add_batch(batch)
-
-    def get_statistics(self):
-        statistics = {}
-        if self.config.get('obs_norm'):
-            statistics['obs_mean'] = self.env.obs_rms.mean
-            statistics['obs_var'] = self.env.obs_rms.var
-        return statistics
 
 @njit
 def _gae_return(

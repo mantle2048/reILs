@@ -112,8 +112,10 @@ class MultipleLRSchedulers(dict):
 
     def __repr__(self):
         """Return str(self)."""
-        self_str = f"Itr: {self._itr}" + ":\n"
         lrs = self.get_last_lr()
+        if not lrs:
+            return "No scheduler"
+        self_str = f"Itr: {self._itr}" + ":\n"
         for name, sche in self.items():
             lr = sche.get_last_lr()[0]
             self_str += f"{name}: {lr}, {sche.lr_lambdas[0]._endpoints} \n"

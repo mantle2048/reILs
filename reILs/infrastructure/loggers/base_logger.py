@@ -304,32 +304,38 @@ class Logger(object):
 
     def save_itr_params(self, itr, params):
         if self._shelf is None:
-            self._shelf = None
-        if self._snapshot_dir:
-            if self._snapshot_mode == 'all':
-                file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)
-                torch.save(params, file_name)
-            elif self._snapshot_mode == 'last':
-                # override previous params
-                file_name = osp.join(self._snapshot_dir, 'params.pkl')
-                torch.save(params, file_name)
-            elif self._snapshot_mode == "gap":
-                if itr % self._snapshot_gap == 0:
-                    file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)
-                    torch.save(params, file_name)
-            elif self._snapshot_mode == "gap_and_last":
-                if itr % self._snapshot_gap == 0:
-                    file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)
-                    torch.save(params, file_name)
-                file_name = osp.join(self._snapshot_dir, 'params.pkl')
-                torch.save(params, file_name)
-            elif self._snapshot_mode == 'none':
-                pass
-            else:
-                raise NotImplementedError
+            # exp_dir/run_dir/params/(params.bak | params.dat | params.dir)
+            param_dir = osp.join(self._snapshot_dir, 'params')
+            os.makedirs(param_dir, exist_ok=True)
+            self._shelf = shelve.open(osp.join(param_dir, 'params'))
+        self._shelf[str(itr)] = params
+        self._shelf['last'] = params
+
+        # if self._snapshot_dir:
+        #     if self._snapshot_mode == 'all':
+        #         file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)
+        #         torch.save(params, file_name)
+        #     elif self._snapshot_mode == 'last':
+        #         # override previous params
+        #         file_name = osp.join(self._snapshot_dir, 'params.pkl')
+        #         torch.save(params, file_name)
+        #     elif self._snapshot_mode == "gap":
+        #         if itr % self._snapshot_gap == 0:
+        #             file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)
+        #             torch.save(params, file_name)
+        #     elif self._snapshot_mode == "gap_and_last":
+        #         if itr % self._snapshot_gap == 0:
+        #             file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)
+        #             torch.save(params, file_name)
+        #         file_name = osp.join(self._snapshot_dir, 'params.pkl')
+        #         torch.save(params, file_name)
+        #     elif self._snapshot_mode == 'none':
+        #         pass
+        #     else:
+        #         raise NotImplementedError
 
     def close(self):
-        pass
+        self._shelf.close()
 
     def _dump_zero_tabular(self, *args, **kwargs):
         wh = kwargs.pop("write_header", None)

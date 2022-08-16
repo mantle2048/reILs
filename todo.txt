@@ -1,4 +1,2 @@
-TODO: add base_policy and base_agent
-TODO: add checkout saver
 TODO: test rollout saver
 TODO: see why ppo dist entropy is negative

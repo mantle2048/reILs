@@ -72,6 +72,7 @@ class RL_Trainer(object):
         #############
         agent_class = self.config['agent_class']
         self.agent = agent_class(self.config)
+        print("Lr Scheduler: ", self.agent.lr_schedulers)
 
     ####################################
     ####################################

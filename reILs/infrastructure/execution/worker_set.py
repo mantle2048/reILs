@@ -2,6 +2,8 @@ import ray
 import numpy as np
 
 from typing import Optional, List, Dict, Union, Callable
+from cytoolz.dicttoolz import merge_with
+
 from reILs.infrastructure.execution import RolloutWorker
 from ray.actor import ActorHandle
 
@@ -72,6 +74,16 @@ class WorkerSet:
         """Returns a list of remote rollout workers."""
         return self._remote_workers
 
+    def sync_statistics(self):
+
+        if len(self.remote_workers()):
+            # sync obs_rms from remote envs to local env
+            remote_statistics = ray.get(
+                [worker.get_statistics.remote() for worker in self.remote_workers()]
+            )
+            statistics = merge_with(lambda x: np.mean(x, axis=0), remote_statistics)
+            self.local_worker().set_statistics(statistics)
+
     def sync_weights(self):
         """Syncs model weights from the local worker to all remote workers. """
 
@@ -87,16 +99,6 @@ class WorkerSet:
             # Sync to all remote workers in this WorkerSet.
             for to_worker in self.remote_workers():
                 to_worker.set_weights.remote(weights_ref)
-
-            # sync obs_rms from remote envs to local env
-            if hasattr(self.local_worker().env, 'obs_rms'):
-                obs_statistics = ray.get(
-                    [worker.get_obs_statistics.remote() for worker in self.remote_workers()]
-                )
-                obs_mean, obs_var = np.mean(obs_statistics, axis=0)
-                self.local_worker().env.obs_rms.mean = obs_mean
-                self.local_worker().env.obs_rms.var = obs_var
-
 
     def add_workers(self, num_workers: int):
         """Creates and adds a number of remote workers to this worker set.

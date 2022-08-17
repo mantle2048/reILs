@@ -3,8 +3,12 @@ import time
 import copy
 import PIL
 import numpy as np
+
+from reILs import user_config as conf
+
+from os import path as osp
 from pyvirtualdisplay import Display
-from moviepy.editor import ImageSequenceClip
+from moviepy.editor import ImageSequenceClip, VideoClip
 
 def combined_shape(length, shape=None):
     if shape is None:
@@ -68,7 +72,14 @@ def add_noise(data_inp, noiseToSignal=0.01):
 ############################################
 ############################################
 
-def write_gif(filename, array, fps=30, scale=1.0):
+def save_video(dir, name, frames):
+    if frames.size == 0: return
+    video_dir = osp.join(dir, 'videos') 
+    os.makedirs(video_dir, exist_ok=True)
+    video_path = osp.join(video_dir, name) 
+    write_gif(video_path, frames, **conf.LOCAL_GIF_CONFIG)
+
+def write_gif(filename, array, fps=20, scale=1.0, backend='PIL'):
     """Creates a gif given a stack of images using moviepy
     Notes
     -----
@@ -92,18 +103,24 @@ def write_gif(filename, array, fps=30, scale=1.0):
 
     # ensure that the file has the .gif extension
     fname, _ = os.path.splitext(filename)
-    filename = fname + '.gif'
+    filename = fname + '.mp4'
 
     # copy into the color dimension if the images are black and white
     if array.ndim == 3:
         array = array[..., np.newaxis] * np.ones(3)
 
-    # Low quality but quick gif save by using PIL
-    # imgs = [PIL.Image.fromarray(img) for img in array]
-    # imgs[0].save(filename, save_all=True, append_images=imgs[1:], duration=1000//fps, loop=0)
-    # return filename
+    if backend == 'PIL':
+        # Low quality but quick gif save by using PIL
+        imgs = [PIL.Image.fromarray(img) for img in array]
+        imgs[0].save(filename, save_all=True, append_images=imgs[1:], duration=1000//fps, loop=0)
+        return filename
 
-    # High quality but slow gif save by using moviepy
-    clip = ImageSequenceClip(list(array), fps=fps).resize(scale)
-    clip.write_gif(filename, fps=fps)
-    return clip
+    elif backend == 'MoviePy':
+        # High quality but slow gif save by using moviepy
+        clip = ImageSequenceClip(list(array), fps=fps).resize(scale)
+        # clip.write_gif(filename, program='ffmpeg', fps=fps)
+        clip.write_videofile(filename, fps=fps)
+        return clip
+
+    else:
+        raise ValueError

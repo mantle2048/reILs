@@ -39,7 +39,7 @@ class RolloutSaver:
         self._exp_dir = exp_dir
         self._track_progress = track_progress
 
-        self._outfile = None # exp_dir/rollouts/rollouts.pkl
+        self._outfile = None # exp_dir/rollouts/rollouts
         self._progressfile = None # exp_dir/rollouts/__progress_rollouts
         self._shelf = None
 
@@ -50,15 +50,13 @@ class RolloutSaver:
         self._save_info = save_info
 
         if self._exp_dir:
-            self._rollout_dir = osp.join(self._exp_dir, 'rollouts')
+            self._rollout_dir = osp.join(self._exp_dir, 'evaluation')
             os.makedirs(self._rollout_dir, exist_ok=True)
-            self._video_dir = osp.join(self._rollout_dir, 'videos')
-            os.makedirs(self._video_dir, exist_ok=True)
-            self._outfile = osp.join(self._rollout_dir, 'rollouts.pkl') 
+            self._outfile = osp.join(self._rollout_dir, 'rollouts') 
 
     def _get_tmp_progress_filename(self):
         outpath = Path(self._outfile)
-        return output.parent / ("__progress_" + outpath.name)
+        return outpath.parent / ("progress_" + outpath.name)
 
     @property
     def outfile(self):
@@ -75,15 +73,15 @@ class RolloutSaver:
             self._progressfile = self._get_tmp_progress_filename().open(mode='w')
         return self
     
-    def __exit__(self):
+    def __exit__(self, type, value, traceback):
         if self._shelf:
             # Close the shelf file, and store the number of episodes for ease
             self._shelf['episodes'] = self._episodes
             self._shelf.close()
         if self._track_progress:
             # Remove the temp progress file:
-            self._get_tmp_progress_filename().unlink()
-            self._progressfile = None
+            # self._get_tmp_progress_filename().unlink()
+            self._progressfile.close()
 
     def _get_progress(self):
         if self._num_episodes:
@@ -95,14 +93,13 @@ class RolloutSaver:
 
     def store(self, batch: Batch):
         if self._outfile:
-            video_frames = batch.pop('img_obs', None)
-            self._shelf[str(self._episodes)] = convert_batch_to_dict(batch)
-            if img_obs:
-                video_name = f"rollout-{self._episodes}"
-                video_file = osp.join(self._video_dir, video_name) 
-                utils.write_gif(video_name, video_frames)
+            # don't save img_obs to save space
+            self._shelf[str(self._episodes)] = convert_batch_to_dict(batch, ignore_keys=['img_obs'])
         self._episodes += 1
         if self._progressfile:
-            self._progressfile.seek(0) # Move the pointer on top of the file
-            self._progressfile.wtire(self._get_progress() + "\n")
+            self._progressfile.write(f"episode reward: {batch.rew.sum()}  |  " + self._get_progress() + "\n")
             self._progressfile.flush()
+
+    @property
+    def rollout_dir(self):
+        return self._rollout_dir

@@ -107,13 +107,20 @@ class RL_Trainer(object):
                 batch_size = self.config.get('batch_size', len(train_batch)),
                 repeat = self.config.get('repeat_per_itr', 1),
             )
+
+            ###########################
+            ## log and save config_json
+            ###########################
+            if itr == 1:
+                self.logger.log_variant('config.json', self.config)
+
             ## log/save
             if self.logtabular:
                 ## perform tabular and video
                 self.perform_logging(itr, train_log)
 
             if self.logparam:
-                self.logger.save_itr_params(itr, self.agent.policy.get_weights())
+                self.logger.save_itr_params(itr, self.agent.get_weights())
                 self.logger.save_extra_data(
                     self.agent.get_statistics(),
                     file_name='statistics.pkl'
@@ -124,13 +131,6 @@ class RL_Trainer(object):
     ####################################
 
     def perform_logging(self, itr, train_log):
-
-        #######################
-        if itr == 0:
-            ## log and save config_json
-            self.logger.log_variant('config.json', self.config)
-
-        #######################
 
         # collect eval trajectories, for logging
         print("\nCollecting rollouts for eval...")
@@ -149,11 +149,11 @@ class RL_Trainer(object):
                 video_batch_list = evaluate(agent=self.agent, num_episodes=MAX_NVIDEO)
 
             ## save train/eval videos
-            # print('\nSaving rollouts as videos...')
-            # self.logger.log_paths_as_videos(
-            #     eval_video_paths, itr, 
-            #     max_videos_to_save=MAX_NVIDEO, video_title='rollouts'
-            # )
+            print('\nSaving rollouts as videos...')
+            self.logger.log_paths_as_videos(
+                eval_video_paths, itr, 
+                max_videos_to_save=MAX_NVIDEO, video_title='rollouts'
+            )
 
         #######################
 

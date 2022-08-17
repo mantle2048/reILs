@@ -1,5 +1,6 @@
 from typing import Dict,Union,List,Tuple
 from torch.optim.lr_scheduler import LambdaLR
+import ray
 
 from reILs.envs import make_env
 from reILs.policies import make_policy
@@ -56,6 +57,14 @@ class OnAgent:
     def get_statistics(self):
         statistics = {}
         if self.config.get('obs_norm'):
-            statistics['obs_mean'] = self.env.obs_rms.mean
-            statistics['obs_var'] = self.env.obs_rms.var
+            statistics.update(ray.get(self.workers.remote_workers()[0].get_statistics.remote()))
         return statistics
+
+    def set_statistics(self, statistics: Dict):
+        self.workers.local_worker().set_statistics(statistics)
+
+    def set_weights(self, weights):
+        self.policy.set_weights(weights)
+
+    def get_weights(self):
+        return self.policy.get_weights()

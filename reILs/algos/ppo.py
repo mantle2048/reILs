@@ -62,6 +62,7 @@ class PPOAgent(OnAgent):
         self.lr_schedulers.step()
         train_log.update(self.lr_schedulers.get_last_lr())
         self.workers.sync_weights()
+        self.workers.sync_statistics()
         return train_log
 
     def estimate_returns_and_advantages(

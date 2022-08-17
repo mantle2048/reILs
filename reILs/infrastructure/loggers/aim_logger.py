@@ -96,7 +96,7 @@ class AimLogger(Logger):
         # pad rollouts to all be same length
         for i in range(max_videos_to_save):
             if videos[i].shape[0]<max_length:
-                padding = np.tile([videos[i][-1]], (max_length-videos[i].shape[0],1,1,1))
+                padding = np.tile([videos[i][-1]], (max_length - videos[i].shape[0],1,1,1))
                 videos[i] = np.concatenate([videos[i], padding], 0)
 
         # log videos to local dir and aim logger

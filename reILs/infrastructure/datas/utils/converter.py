@@ -1,7 +1,7 @@
 import pickle
 from copy import deepcopy
 from numbers import Number
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, List
 
 import h5py
 import numpy as np
@@ -9,9 +9,10 @@ import torch
 
 from reILs.infrastructure.datas.batch import Batch, _parse_value
 
-def convert_batch_to_dict(batch: Batch) -> Dict:
+def convert_batch_to_dict(batch: Batch, ignore_keys: List=[]) -> Dict:
     batch_dict = {}
     for batch_key, obj in batch.items():
+        if batch_key in ignore_keys: continue
         if isinstance(obj, Batch):
             batch_dict[batch_key] = convert_batch_to_dict(obj)
         else:

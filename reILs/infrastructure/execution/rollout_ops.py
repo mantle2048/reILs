@@ -43,7 +43,6 @@ def synchronous_parallel_sample(
         while steps < max_steps:
             batches = ray.get(
                 [worker.sample.remote(sample_step=worker_step) for worker in remote_workers]
-                # [worker.sample.remote() for worker in remote_workers]
             )
             for batch in batches:
                 surplus_steps = max_steps - steps

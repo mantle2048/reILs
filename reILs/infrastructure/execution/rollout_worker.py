@@ -205,6 +205,21 @@ class RolloutWorker:
     def get_weights(self):
         return self.policy.get_weights()
 
+    def get_statistics(self):
+        statistics = {}
+        if hasattr(self.env, 'obs_rms'):
+            statistics['obs_mean'] = self.env.obs_rms.mean
+            statistics['obs_var'] = self.env.obs_rms.var
+            statistics['count'] = self.env.obs_rms.count
+        return statistics
+
+    def set_statistics(self, statistics: Dict):
+        if not statistics: return
+        if hasattr(self.env, 'obs_rms'):
+            self.env.obs_rms.mean = statistics['obs_mean']
+            self.env.obs_rms.var = statistics['obs_var']
+            self.env.obs_rms.count = statistics['count']
+
     def stop(self):
         """Releases all resources used by this RolloutWorker."""
         self.env.close()

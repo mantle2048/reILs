@@ -73,14 +73,14 @@ class AimLogger(Logger):
         assert len(n_video_frames.shape) == 5, "Need [N, T, C, H, W] input tensor for video logging!"
         aim_images = []
         for idx, video_frames in enumerate(n_video_frames):
-            caption = f'{name}_{step_}_{idx}.gif'
+            caption = f'{name}_{step_}_{idx}.mp4'
             video_log_path = osp.join(self._video_log_dir, caption)
-            utils.write_gif(video_log_path, video_frames, fps=fps)
-            aim_image = aim.Image(image=video_log_path, caption=caption, format='gif')
-            aim_images.append(aim_image)
-        self._aim_run.track(value=aim_images, name=name, step=step_, context=context)
+            utils.write_mp4(video_log_path, video_frames, fps=fps)
+            # aim_image = aim.Image(image=video_log_path, caption=caption, format='mp4')
+            # aim_images.append(aim_image)
+        # self._aim_run.track(value=aim_images, name=name, step=step_, context=context)
 
-    def log_paths_as_videos(self, paths, step, fps=30, video_title='video'):
+    def log_paths_as_videos(self, paths, step, fps=20, video_title='video'):
 
         # reshape the rollouts
         # videos = [np.transpose(p['image_obs'], [0, 1, 2, 3]) for p in paths]

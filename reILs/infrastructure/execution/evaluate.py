@@ -181,7 +181,7 @@ def evaluate(
         f'Agent: {agent} must have workers to evaluate.'
 
     # no saver, just evaluate the agent performance.
-    if agent.workers.remote_workers():
+    if agent.workers.remote_workers() and not render:
         eval_batch_list = synchronous_parallel_sample(
             remote_workers=agent.workers.remote_workers(),
             max_steps=num_steps,
@@ -227,7 +227,6 @@ def evaluate(
 
             batch = Batch.stack(step_list)
             eval_batch_list.append(batch)
-    for idx, batch in enumerate(eval_batch_list):
-        print(f"Rollout {idx + 1} Rew: ", batch.rew.sum())
+    for batch in eval_batch_list:
         saver.store(batch)
     return eval_batch_list

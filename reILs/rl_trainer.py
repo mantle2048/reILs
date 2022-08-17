@@ -139,20 +139,11 @@ class RL_Trainer(object):
         # save eval rollouts as videos
         if self.logvideo:
             print('\nCollecting and saving video rollouts')
-            with RolloutSaver(
-                self.logger.exp_dir,
-                num_episodes=MAX_NVIDEO,
-                track_progress=True,
-                save_info=True,
-                render=True,
-            ) as saver:
-                video_batch_list = evaluate(agent=self.agent, num_episodes=MAX_NVIDEO)
-
+            video_batch_list = evaluate(agent=self.agent, num_episodes=MAX_NVIDEO, render=True)
             ## save train/eval videos
             print('\nSaving rollouts as videos...')
             self.logger.log_paths_as_videos(
-                eval_video_paths, itr, 
-                max_videos_to_save=MAX_NVIDEO, video_title='rollouts'
+                video_batch_list, itr, video_title='rollouts'
             )
 
         #######################

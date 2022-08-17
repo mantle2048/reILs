@@ -77,9 +77,9 @@ def save_video(dir, name, frames):
     video_dir = osp.join(dir, 'videos') 
     os.makedirs(video_dir, exist_ok=True)
     video_path = osp.join(video_dir, name) 
-    write_gif(video_path, frames, **conf.LOCAL_GIF_CONFIG)
+    write_mp4(video_path, frames, **conf.LOCAL_GIF_CONFIG)
 
-def write_gif(filename, array, fps=20, scale=1.0, backend='PIL'):
+def write_mp4(filename, array, fps=20, scale=1.0, backend='MoviePy'):
     """Creates a gif given a stack of images using moviepy
     Notes
     -----

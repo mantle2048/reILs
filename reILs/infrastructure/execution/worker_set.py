@@ -82,6 +82,8 @@ class WorkerSet:
                 [worker.get_statistics.remote() for worker in self.remote_workers()]
             )
             statistics = merge_with(lambda x: np.mean(x, axis=0), remote_statistics)
+            if 'count' in statistics.keys():
+                statistics['count'] = statistics['count'] * len(remote_statistics)
             self.local_worker().set_statistics(statistics)
 
     def sync_weights(self):

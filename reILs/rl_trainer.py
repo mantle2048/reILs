@@ -123,7 +123,7 @@ class RL_Trainer(object):
                 self.logger.save_itr_params(itr, self.agent.get_weights())
                 self.logger.save_extra_data(
                     self.agent.get_statistics(),
-                    file_name='statistics.pkl'
+                    file_name='statistics.pkl',
                 ) 
         self.logger.close()
 

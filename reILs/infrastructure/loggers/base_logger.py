@@ -242,12 +242,12 @@ class Logger(object):
         yield
         self.pop_tabular_prefix()
 
-    def log_variant(self, file_name, variant_data):
+    def log_variant(self, file_name, variant_data, mode='a'):
         self.log(f"{file_name}:")
         self.log(f"{variant_data}")
         file_name = osp.join(self._snapshot_dir, file_name)
         mkdir_p(os.path.dirname(file_name))
-        with open(file_name, "a") as f:
+        with open(file_name, mode) as f:
             json.dump(variant_data, f, indent=2, sort_keys=True, cls=MyEncoder)
 
     def record_tabular_misc_stat(self, key, values, placement='front'):

@@ -12,7 +12,9 @@ args = parser.parse_args([
     '--exp-dir',
     'data/gail_HalfCheetah-v2/gail_HalfCheetah-v2_5',
     '--track-progress',
-    '--render'
+    '--episodes',
+    '10'
+    # '--render'
 ])
 print(vars(args))
 run(args)

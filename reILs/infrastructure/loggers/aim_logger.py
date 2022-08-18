@@ -54,9 +54,9 @@ class AimLogger(Logger):
         print('aim outputs to ', aim_dir)
         print('########################')
 
-    def log_variant(self, file_name, variant_data):
+    def log_variant(self, file_name, variant_data, **kwargs):
         # super(AimLogger, self).log_variant(file_name, variant_data)
-        super().log_variant(file_name, variant_data)
+        super().log_variant(file_name, variant_data, **kwargs)
         assert isinstance(file_name, str), 'file_name must be std'
         assert isinstance(variant_data, dict), 'file_name must be dict'
         file_name = osp.splitext(file_name)[-2] # Remove the extension name which Aim does not support.
@@ -73,7 +73,7 @@ class AimLogger(Logger):
         assert len(n_video_frames.shape) == 5, "Need [N, T, C, H, W] input tensor for video logging!"
         aim_images = []
         for idx, video_frames in enumerate(n_video_frames):
-            caption = f'{name}_{step_}_{idx}.mp4'
+            caption = f'{name}-{step_}-{idx}.mp4'
             video_log_path = osp.join(self._video_log_dir, caption)
             utils.write_mp4(video_log_path, video_frames, fps=fps)
             # aim_image = aim.Image(image=video_log_path, caption=caption, format='mp4')

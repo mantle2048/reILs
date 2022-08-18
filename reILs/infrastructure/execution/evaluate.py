@@ -112,7 +112,7 @@ def run(args):
     exp_dir = osp.join(LOCAL_DIR, args.exp_dir)
     config_dir = osp.join(exp_dir, 'config.json')
     params_dir = osp.join(exp_dir, 'params')
-    statistics_dir = osp.join(exp_dir, 'statistics.pkl')
+    statistics_dir = osp.join(exp_dir, 'statistics.json')
 
     params = shelve.open(osp.join(params_dir, 'params'))
 

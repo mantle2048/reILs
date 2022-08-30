@@ -12,8 +12,8 @@ LOCAL_RENDER_CONFIG = {
     "camera_id": None,
     "camera_name": None,
 }
-LOCAL_GIF_CONFIG = {
-    "fps": 20,
+LOCAL_MP4_CONFIG = {
+    "fps": 10,
     "backend": 'MoviePy', # 'PIL', 'MoviePy'
     "scale": 1.0,
 }

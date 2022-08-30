@@ -47,7 +47,8 @@ def collect(
             surplus_steps = num_steps - steps
             if surplus_steps < len(batch):
                 batch = batch[:surplus_steps]
-            batch['eps_id'] = np.full(len(batch), episodes)
+                if not batch.terminal[-1]:
+                    batch.truncated[-1] = True
             steps += len(batch)
             episodes += 1
             train_batch_list.append(batch)

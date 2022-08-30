@@ -200,8 +200,8 @@ def evaluate(
         img_obs = []
         max_step = get_max_episode_steps(env)
         while keep_going(steps, num_steps, episodes, num_episodes):
-            done, ep_rew, ep_len, step_list = False, 0.0, 0, []
-            terminal = False
+            ep_rew, ep_len, step_list = 0.0, 0, []
+            done, terminal, truncated = False, False, False
             obs = env.reset()
             if render:
                 img_obs = env.render(**LOCAL_RENDER_CONFIG)
@@ -210,18 +210,19 @@ def evaluate(
                 next_obs, rew, done, info = env.step(act)
                 ep_rew += rew
                 ep_len += 1
-                if done and ep_len != max_step:
-                    terminal = True
+                steps += 1
+                if done:
+                    if ep_len != max_step: terminal = True
+                    else: truncated = True
                 step_return = Batch(
                     obs=obs, act=act, next_obs=next_obs, rew=rew,
-                    done=done, info=info, img_obs=img_obs,
-                    ep_len=ep_len, ep_rew=ep_rew, terminal=terminal
+                    done=done, info=info, img_obs=img_obs, ep_len=ep_len,
+                    ep_rew=ep_rew, terminal=terminal, truncated=truncated
                 )
                 step_list.append(step_return)
                 if render:
                     img_obs = env.render(**LOCAL_RENDER_CONFIG)
                 obs = next_obs
-                steps += 1
             if done:
                 episodes += 1
 

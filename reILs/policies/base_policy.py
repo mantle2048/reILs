@@ -126,7 +126,7 @@ class OnPolicy(nn.Module):
         """
         obs = ptu.from_numpy(obs)
         predictions = self.baseline(obs)
-        return ptu.to_numpy(predictions)[:, 0]
+        return ptu.to_numpy(predictions).squeeze()
 
     def save(self, filepath=None):
         torch.save(self.state_dict(), filepath)

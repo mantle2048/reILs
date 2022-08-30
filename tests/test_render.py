@@ -9,7 +9,6 @@ def test_bullet_render():
     obs = env.reset()
 
     img = env.render(mode='rgb_array', height=500)
-    import ipdb; ipdb.set_trace()
 
 
     for _ in range(1000):
@@ -27,11 +26,16 @@ def test_dmc_render():
     obs = env.reset()
 
     img = env.render(mode='rgb_array')
-
     return img
 
+def test_gym_render():
+    env = gym.make("HalfCheetah-v3")
+    obs = env.reset()
+
+    img = env.render(mode='rgb_array')
+    return img
 if __name__ == '__main__':
     virtual_disp = Display(visible=False, size=(1400,900))
     virtual_disp.start()
-    img = test_dmc_render()
+    img = test_gym_render()
     print(img.shape)

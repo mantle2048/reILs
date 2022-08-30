@@ -47,8 +47,9 @@ class PPOPolicy(OnPolicy):
         surrogate_obj = torch.min(surr1, surr2)
         loss = -torch.mean(surrogate_obj) - self.entropy_coeff * entropy
 
+
         # Userful extral info
-        # Calculate approximate form of reverse KL Divergence for early stopping
+        # Calculate approximate form of reverse KL Divergence
         # see issue #417: https://github.com/DLR-RM/stable-baselines3/issues/417
         # and discussion in PR #419: https://github.com/DLR-RM/stable-baselines3/pull/419
         # and Schulman blog: http://joschu.net/blog/kl-approx.html
@@ -65,8 +66,8 @@ class PPOPolicy(OnPolicy):
             nn.utils.clip_grad_norm_(self.parameters(), self.grad_clip)
         self.optimizer.step()
 
-        targets = ptu.from_numpy(batch.returns)
-        baseline_preds = self.baseline(obss).flatten()
+        targets = ptu.from_numpy(batch.ret)
+        baseline_preds = self.baseline(obss).squeeze()
 
         ## avoid any subtle broadcasting bugs that can arise when dealing with arrays of shape
         ## [ N ] versus shape [ N x 1 ]

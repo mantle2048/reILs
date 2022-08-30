@@ -48,6 +48,8 @@ def synchronous_parallel_sample(
                 surplus_steps = max_steps - steps
                 if surplus_steps < len(batch):
                     batch = batch[:surplus_steps]
+                    if not batch.terminal[-1]:
+                        batch.truncated[-1] = True
                 batch_list.append(batch)
                 episodes += 1
                 steps += len(batch)
@@ -62,7 +64,6 @@ def synchronous_parallel_sample(
                 [worker.sample.remote() for worker in remote_workers]
             )
             for batch in batches:
-                batch['eps_id'] = np.full(len(batch), episodes)
                 batch_list.append(batch)
                 episodes += 1
 
